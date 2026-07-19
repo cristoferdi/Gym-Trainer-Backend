@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 123andi123
+      POSTGRES_DB: entrenaback
+    ports:
+    - "5432:5432"
