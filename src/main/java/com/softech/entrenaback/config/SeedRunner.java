@@ -44,7 +44,8 @@ public class SeedRunner implements CommandLineRunner {
                 exercise.setBodyParts(joinList(item.get("bodyParts")));
                 exercise.setEquipments(joinList(item.get("equipments")));
                 exercise.setSecondaryMuscles(joinList(item.get("secondaryMuscles")));
-                exercise.setInstructions(joinListPipe(item.get("instructions")));
+                //noinspection unchecked
+                exercise.setInstructions((List<String>) item.get("instructions"));
                 exerciseRepository.save(exercise);
             }
         }

@@ -1,6 +1,7 @@
 package com.softech.entrenaback.config;
 
 import com.softech.entrenaback.auth.JwtAuthFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,6 +37,15 @@ public class SecurityConfig {
                 .requestMatchers("/auth/register", "/auth/login", "/auth/refresh").permitAll()
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write(
+                        "{\"error\":\"unauthorized\",\"message\":\"Acceso denegado\",\"statusCode\":401}");
+                })
+            )
+            .anonymous(anonymous -> anonymous.disable())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

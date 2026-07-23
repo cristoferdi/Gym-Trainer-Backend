@@ -1,5 +1,6 @@
 package com.softech.entrenaback.auth;
 
+import com.softech.entrenaback.config.DuplicateResourceException;
 import com.softech.entrenaback.trainer.Trainer;
 import com.softech.entrenaback.trainer.TrainerRepository;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -23,7 +24,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (trainerRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("El email ya está registrado");
+            throw new DuplicateResourceException("El email ya está registrado");
         }
 
         var trainer = new Trainer(

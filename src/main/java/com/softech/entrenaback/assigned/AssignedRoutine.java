@@ -26,7 +26,7 @@ public class AssignedRoutine {
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "jsonb")
     private String description;
 
     @Column(name = "student_name")

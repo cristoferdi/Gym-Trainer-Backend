@@ -11,9 +11,9 @@ import java.util.List;
 public interface ExerciseRepository extends JpaRepository<Exercise, String> {
 
     @Query("SELECT e FROM Exercise e WHERE " +
-           "(:q IS NULL OR LOWER(e.nameNormalized) LIKE LOWER(CONCAT('%', :q, '%'))) AND " +
-           "(:muscle IS NULL OR LOWER(e.targetMuscles) LIKE LOWER(CONCAT('%', :muscle, '%'))) AND " +
-           "(:equipment IS NULL OR LOWER(e.equipments) LIKE LOWER(CONCAT('%', :equipment, '%')))")
+            "(CAST(:q AS String) IS NULL OR LOWER(e.nameNormalized) LIKE LOWER(CONCAT('%', CAST(:q AS String), '%'))) AND " +
+            "(CAST(:muscle AS String) IS NULL OR LOWER(e.targetMuscles) LIKE LOWER(CONCAT('%', CAST(:muscle AS String), '%'))) AND " +
+            "(CAST(:equipment AS String) IS NULL OR LOWER(e.equipments) LIKE LOWER(CONCAT('%', CAST(:equipment AS String), '%')))")
     Page<Exercise> search(@Param("q") String q,
                           @Param("muscle") String muscle,
                           @Param("equipment") String equipment,

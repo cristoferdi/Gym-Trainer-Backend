@@ -1,5 +1,6 @@
 package com.softech.entrenaback.exercise;
 
+import com.softech.entrenaback.config.ResourceNotFoundException;
 import com.softech.entrenaback.exercise.dto.ExerciseListResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,7 +34,7 @@ public class ExerciseService {
 
     public Exercise findById(String id) {
         return exerciseRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Ejercicio no encontrado: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Ejercicio no encontrado: " + id));
     }
 
     public List<String> getMuscles() {

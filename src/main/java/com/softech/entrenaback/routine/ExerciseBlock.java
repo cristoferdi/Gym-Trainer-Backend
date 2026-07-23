@@ -29,7 +29,7 @@ public class ExerciseBlock {
     @Column(name = "rest_time")
     private String restTime;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "jsonb")
     private String indications;
 
     @OneToMany(mappedBy = "block", cascade = CascadeType.ALL, orphanRemoval = true)
