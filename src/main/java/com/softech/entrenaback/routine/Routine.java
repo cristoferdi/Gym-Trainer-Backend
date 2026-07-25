@@ -21,7 +21,7 @@ public class Routine {
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "coach_name")

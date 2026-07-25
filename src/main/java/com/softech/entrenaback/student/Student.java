@@ -1,5 +1,6 @@
 package com.softech.entrenaback.student;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.softech.entrenaback.trainer.Trainer;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ public class Student {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trainer_id", nullable = false)
     private Trainer trainer;

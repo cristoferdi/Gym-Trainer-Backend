@@ -1,6 +1,7 @@
 package com.softech.entrenaback.routine;
 
 import jakarta.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "sub_exercise_details")
@@ -26,14 +27,10 @@ public class SubExerciseDetail {
     @Column(name = "video_url", nullable = false)
     private String videoUrl;
 
-    @Column(nullable = false)
-    private String muscle;
 
-    @Column(nullable = false)
-    private String equipment;
-
-    @Column(columnDefinition = "jsonb")
-    private String instructions;
+    @Convert(converter = StringListConverter.class)
+    @Column(columnDefinition = "TEXT")
+    private List<String> instructions;
 
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
@@ -58,14 +55,8 @@ public class SubExerciseDetail {
     public String getVideoUrl() { return videoUrl; }
     public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
 
-    public String getMuscle() { return muscle; }
-    public void setMuscle(String muscle) { this.muscle = muscle; }
-
-    public String getEquipment() { return equipment; }
-    public void setEquipment(String equipment) { this.equipment = equipment; }
-
-    public String getInstructions() { return instructions; }
-    public void setInstructions(String instructions) { this.instructions = instructions; }
+    public List<String> getInstructions() { return instructions; }
+    public void setInstructions(List<String> instructions) { this.instructions = instructions; }
 
     public Integer getOrderIndex() { return orderIndex; }
     public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }

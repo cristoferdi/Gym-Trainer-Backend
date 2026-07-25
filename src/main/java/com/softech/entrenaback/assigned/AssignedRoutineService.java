@@ -177,10 +177,7 @@ public class AssignedRoutineService {
                 subMap.put("name", sub.getName());
                 subMap.put("gif_url", sub.getGifUrl());
                 subMap.put("video_url", sub.getVideoUrl());
-                subMap.put("muscle", sub.getMuscle());
-                subMap.put("equipment", sub.getEquipment());
-                subMap.put("instructions", sub.getInstructions() != null
-                        ? List.of(sub.getInstructions().split(",")) : null);
+                subMap.put("instructions", sub.getInstructions());
                 return subMap;
             }).toList();
 

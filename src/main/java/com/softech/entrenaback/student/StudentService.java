@@ -3,10 +3,12 @@ package com.softech.entrenaback.student;
 import com.softech.entrenaback.student.dto.StudentRequest;
 import com.softech.entrenaback.trainer.TrainerRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class StudentService {
 
     private final StudentRepository studentRepository;

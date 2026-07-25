@@ -1,7 +1,10 @@
 package com.softech.entrenaback.routine;
 
+import com.softech.entrenaback.config.ResourceNotFoundException;
 import com.softech.entrenaback.routine.dto.*;
 import com.softech.entrenaback.trainer.TrainerRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +16,9 @@ public class RoutineService {
 
     private final RoutineRepository routineRepository;
     private final TrainerRepository trainerRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public RoutineService(RoutineRepository routineRepository, TrainerRepository trainerRepository) {
         this.routineRepository = routineRepository;
@@ -57,8 +63,7 @@ public class RoutineService {
                             sub.setName(subDto.getName());
                             sub.setGifUrl(subDto.getGifUrl());
                             sub.setVideoUrl(subDto.getVideoUrl());
-                            sub.setInstructions(subDto.getInstructions() != null
-                                    ? String.join(",", subDto.getInstructions()) : null);
+                            sub.setInstructions(subDto.getInstructions());
                             sub.setOrderIndex(i);
                             block.getSubExercises().add(sub);
                         }
@@ -94,7 +99,11 @@ public class RoutineService {
         routine.setName(request.getName());
         routine.setDescription(request.getDescription());
 
+        for (var day : new java.util.ArrayList<>(routine.getDays())) {
+            entityManager.remove(entityManager.contains(day) ? day : entityManager.merge(day));
+        }
         routine.getDays().clear();
+        routineRepository.saveAndFlush(routine);
 
         for (var dayDto : request.getDays()) {
             var day = new RoutineDay();
@@ -123,8 +132,7 @@ public class RoutineService {
                             sub.setName(subDto.getName());
                             sub.setGifUrl(subDto.getGifUrl());
                             sub.setVideoUrl(subDto.getVideoUrl());
-                            sub.setInstructions(subDto.getInstructions() != null
-                                    ? String.join(",", subDto.getInstructions()) : null);
+                            sub.setInstructions(subDto.getInstructions());
                             sub.setOrderIndex(i);
                             block.getSubExercises().add(sub);
                         }
@@ -148,10 +156,10 @@ public class RoutineService {
                 .orElseThrow(() -> new IllegalArgumentException("Entrenador no encontrado"));
 
         var routine = routineRepository.findById(routineId)
-                .orElseThrow(() -> new IllegalArgumentException("Rutina no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Rutina no encontrada"));
 
         if (!routine.getTrainer().getId().equals(trainer.getId())) {
-            throw new IllegalArgumentException("Rutina no pertenece a este entrenador");
+            throw new ResourceNotFoundException("Rutina no pertenece a este entrenador");
         }
 
         return routine;
@@ -179,8 +187,7 @@ public class RoutineService {
                     subDto.setName(sub.getName());
                     subDto.setGifUrl(sub.getGifUrl());
                     subDto.setVideoUrl(sub.getVideoUrl());
-                    subDto.setInstructions(sub.getInstructions() != null
-                            ? List.of(sub.getInstructions().split(",")) : null);
+                    subDto.setInstructions(sub.getInstructions());
                     return subDto;
                 }).toList();
 
