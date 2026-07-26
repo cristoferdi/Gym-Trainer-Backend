@@ -180,7 +180,7 @@ public class SyncService {
         ce.setVideoUrl(str(data.get("videoUrl")));
         ce.setTarget(str(data.get("target")));
         ce.setSecondaryMuscles(data.get("secondaryMuscles") != null ? data.get("secondaryMuscles").toString() : "[]");
-        ce.setInstructions(data.get("instructions") != null ? data.get("instructions").toString() : "[]");
+        ce.setInstructions((List<String>)(data.get("instructions")));
     }
 
     private Student findStudent(Trainer trainer, String id) {

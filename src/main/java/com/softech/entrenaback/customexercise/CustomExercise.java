@@ -2,6 +2,8 @@ package com.softech.entrenaback.customexercise;
 
 import com.softech.entrenaback.trainer.Trainer;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -35,11 +37,12 @@ public class CustomExercise {
     @Column(nullable = false)
     private String target;
 
-    @Column(name = "secondary_muscles", columnDefinition = "jsonb")
+    @Column(name = "secondary_muscles", nullable = false)
     private String secondaryMuscles;
 
-    @Column(columnDefinition = "jsonb")
-    private String instructions;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private List<String> instructions;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -87,8 +90,8 @@ public class CustomExercise {
     public String getSecondaryMuscles() { return secondaryMuscles; }
     public void setSecondaryMuscles(String secondaryMuscles) { this.secondaryMuscles = secondaryMuscles; }
 
-    public String getInstructions() { return instructions; }
-    public void setInstructions(String instructions) { this.instructions = instructions; }
+    public List<String> getInstructions() { return instructions; }
+    public void setInstructions(List<String> instructions) { this.instructions = instructions; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

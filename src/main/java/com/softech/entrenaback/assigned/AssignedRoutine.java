@@ -3,6 +3,8 @@ package com.softech.entrenaback.assigned;
 import com.softech.entrenaback.student.Student;
 import com.softech.entrenaback.trainer.Trainer;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +28,7 @@ public class AssignedRoutine {
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "student_name")

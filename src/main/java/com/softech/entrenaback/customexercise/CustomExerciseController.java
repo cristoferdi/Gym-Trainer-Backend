@@ -32,6 +32,11 @@ public class CustomExerciseController {
         return ResponseEntity.ok(customExerciseService.list(auth.getName()));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<CustomExerciseResponse> getById(Authentication auth, @PathVariable String id) {
+        return ResponseEntity.ok(customExerciseService.getById(auth.getName(), id));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<CustomExerciseResponse> update(Authentication auth, @PathVariable String id,
                                                           @Valid @RequestBody CustomExerciseRequest request) {

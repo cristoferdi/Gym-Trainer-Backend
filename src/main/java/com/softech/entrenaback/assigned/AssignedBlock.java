@@ -1,6 +1,8 @@
 package com.softech.entrenaback.assigned;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,6 +17,7 @@ public class AssignedBlock {
     @JoinColumn(name = "assigned_day_id", nullable = false)
     private AssignedRoutineDay assignedDay;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "block_data", nullable = false, columnDefinition = "jsonb")
     private String blockData;
 

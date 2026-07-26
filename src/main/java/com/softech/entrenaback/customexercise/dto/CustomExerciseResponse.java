@@ -46,7 +46,7 @@ public class CustomExerciseResponse {
             ce.getId(), ce.getName(), ce.getMuscle(), ce.getEquipment(),
             ce.getGifUrl(), ce.getVideoUrl(), ce.getTarget(),
             parseJsonList(ce.getSecondaryMuscles()),
-            parseJsonList(ce.getInstructions())
+            ce.getInstructions()
         );
     }
 

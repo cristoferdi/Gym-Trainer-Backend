@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.softech.entrenaback.assigned.dto.*;
 import com.softech.entrenaback.routine.ExerciseBlock;
 import com.softech.entrenaback.routine.RoutineRepository;
-import com.softech.entrenaback.routine.SubExerciseDetail;
 import com.softech.entrenaback.student.StudentRepository;
 import com.softech.entrenaback.trainer.TrainerRepository;
 import org.springframework.stereotype.Service;

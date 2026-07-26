@@ -45,6 +45,11 @@ public class CustomExerciseService {
                 .toList();
     }
 
+    public CustomExerciseResponse getById(String trainerEmail, String id) {
+        var ce = findOwned(trainerEmail, id);
+        return CustomExerciseResponse.from(ce);
+    }
+
     public CustomExerciseResponse update(String trainerEmail, String id, CustomExerciseRequest request) {
         var ce = findOwned(trainerEmail, id);
         applyRequest(ce, request);
@@ -78,7 +83,7 @@ public class CustomExerciseService {
         ce.setVideoUrl(r.getVideoUrl() != null ? r.getVideoUrl() : "");
         ce.setTarget(r.getTarget() != null ? r.getTarget() : "");
         ce.setSecondaryMuscles(toJson(r.getSecondaryMuscles()));
-        ce.setInstructions(toJson(r.getInstructions()));
+        ce.setInstructions(r.getInstructions());
     }
 
     private String toJson(List<String> list) {
