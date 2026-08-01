@@ -164,23 +164,23 @@ public class AssignedRoutineService {
         try {
             var map = new LinkedHashMap<String, Object>();
             map.put("id", block.getId());
-            map.put("_combined", block.getIsCombined());
+            map.put("isCombined", block.getIsCombined());
             map.put("series", block.getSeries());
             map.put("reps", block.getReps());
-            map.put("rest_time", block.getRestTime());
+            map.put("restTime", block.getRestTime());
             map.put("indications", block.getIndications());
 
             var subs = block.getSubExercises().stream().map(sub -> {
                 var subMap = new LinkedHashMap<String, Object>();
-                subMap.put("exercise_id", sub.getExerciseId());
+                subMap.put("exerciseId", sub.getExerciseId());
                 subMap.put("name", sub.getName());
-                subMap.put("gif_url", sub.getGifUrl());
-                subMap.put("video_url", sub.getVideoUrl());
+                subMap.put("gifUrl", sub.getGifUrl());
+                subMap.put("videoUrl", sub.getVideoUrl());
                 subMap.put("instructions", sub.getInstructions());
                 return subMap;
             }).toList();
 
-            map.put("sub_exercises", subs);
+            map.put("subExercises", subs);
             return objectMapper.writeValueAsString(map);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error serializando bloque", e);
@@ -205,12 +205,12 @@ public class AssignedRoutineService {
 
                 try {
                     var data = objectMapper.readValue(block.getBlockData(), Map.class);
-                    blockDto.setCombined((Boolean) data.get("_combined"));
+                    blockDto.setIsCombined((Boolean) data.get("isCombined"));
                     blockDto.setSeries((Integer) data.get("series"));
                     blockDto.setReps((Integer) data.get("reps"));
-                    blockDto.setRestTime((String) data.get("rest_time"));
+                    blockDto.setRestTime((String) data.get("restTime"));
                     blockDto.setIndications((String) data.get("indications"));
-                    blockDto.setSubExercises((List<Map<String, Object>>) data.get("sub_exercises"));
+                    blockDto.setSubExercises((List<Map<String, Object>>) data.get("subExercises"));
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException("Error deserializando bloque", e);
                 }

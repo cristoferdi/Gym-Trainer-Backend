@@ -82,8 +82,7 @@ public class RoutineService {
 
         return routineRepository.findByTrainerId(trainer.getId())
                 .stream()
-                .map(r -> new RoutineResponse(r.getId(), r.getName(), r.getDescription(),
-                        r.getCoachName(), null, r.getCreatedAt(), r.getUpdatedAt()))
+                .map(this::toResponse)
                 .toList();
     }
 

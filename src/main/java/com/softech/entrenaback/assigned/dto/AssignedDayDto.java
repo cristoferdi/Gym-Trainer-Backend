@@ -1,19 +1,12 @@
 package com.softech.entrenaback.assigned.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 public class AssignedDayDto {
 
-    @JsonProperty("day_id")
     private String dayId;
-
-    @JsonProperty("day_name")
     private String dayName;
-
-    @JsonProperty("order_index")
     private Integer orderIndex;
-
     private List<AssignedBlockDto> blocks;
 
     public String getDayId() { return dayId; }

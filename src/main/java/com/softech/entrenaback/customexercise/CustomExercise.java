@@ -40,6 +40,9 @@ public class CustomExercise {
     @Column(name = "secondary_muscles", nullable = false)
     private String secondaryMuscles;
 
+    @Column(name = "original_global_id")
+    private String originalGlobalId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private List<String> instructions;
@@ -89,6 +92,9 @@ public class CustomExercise {
 
     public String getSecondaryMuscles() { return secondaryMuscles; }
     public void setSecondaryMuscles(String secondaryMuscles) { this.secondaryMuscles = secondaryMuscles; }
+
+    public String getOriginalGlobalId() { return originalGlobalId; }
+    public void setOriginalGlobalId(String originalGlobalId) { this.originalGlobalId = originalGlobalId; }
 
     public List<String> getInstructions() { return instructions; }
     public void setInstructions(List<String> instructions) { this.instructions = instructions; }

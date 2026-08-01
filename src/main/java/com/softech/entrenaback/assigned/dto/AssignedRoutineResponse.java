@@ -1,6 +1,5 @@
 package com.softech.entrenaback.assigned.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -9,25 +8,12 @@ public class AssignedRoutineResponse {
     private String id;
     private String name;
     private String description;
-
-    @JsonProperty("studentId")
     private String studentId;
-
-    @JsonProperty("studentName")
     private String studentName;
-
-    @JsonProperty("studentGoal")
     private String studentGoal;
-
-    @JsonProperty("coachName")
     private String coachName;
-
-    @JsonProperty("shareUrl")
     private String shareUrl;
-
     private List<AssignedDayDto> days;
-
-    @JsonProperty("createdAt")
     private LocalDateTime createdAt;
 
     public AssignedRoutineResponse() {}

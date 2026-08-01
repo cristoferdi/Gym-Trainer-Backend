@@ -41,14 +41,14 @@ class ExerciseRepositoryTest {
 
     @Test
     void search_ShouldReturnResults_WhenAllFiltersNull() {
-        Page<Exercise> result = exerciseRepository.search(null, null, null, PageRequest.of(0, 10));
+        Page<Exercise> result = exerciseRepository.search(null, null, null, List.of("DUMMY"), PageRequest.of(0, 10));
 
         assertThat(result).isNotEmpty();
     }
 
     @Test
     void search_ShouldFilterByMuscle_WhenMuscleProvided() {
-        Page<Exercise> result = exerciseRepository.search(null, "abdominales", null, PageRequest.of(0, 100));
+        Page<Exercise> result = exerciseRepository.search(null, "abdominales", null, List.of("DUMMY"), PageRequest.of(0, 100));
 
         assertThat(result).isNotEmpty();
         assertThat(result).allMatch(e -> e.getTargetMuscles().toLowerCase().contains("abdominales"));
@@ -56,7 +56,7 @@ class ExerciseRepositoryTest {
 
     @Test
     void getById_ShouldReturnInstructionsAsList() {
-        Page<Exercise> page = exerciseRepository.search(null, null, null, PageRequest.of(0, 1));
+        Page<Exercise> page = exerciseRepository.search(null, null, null, List.of("DUMMY"), PageRequest.of(0, 1));
         Exercise first = page.getContent().get(0);
 
         Exercise found = exerciseRepository.findById(first.getId()).orElseThrow();

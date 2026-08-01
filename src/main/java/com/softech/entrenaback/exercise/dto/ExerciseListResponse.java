@@ -1,15 +1,14 @@
 package com.softech.entrenaback.exercise.dto;
 
-import com.softech.entrenaback.exercise.Exercise;
 import java.util.List;
 
 public class ExerciseListResponse {
 
     private boolean success;
     private Metadata metadata;
-    private List<Exercise> data;
+    private List<UnifiedExerciseResponse> data;
 
-    public ExerciseListResponse(List<Exercise> data, long totalExercises, int totalPages, int currentPage) {
+    public ExerciseListResponse(List<UnifiedExerciseResponse> data, long totalExercises, int totalPages, int currentPage) {
         this.success = true;
         this.metadata = new Metadata(totalExercises, totalPages, currentPage);
         this.data = data;
@@ -17,7 +16,7 @@ public class ExerciseListResponse {
 
     public boolean isSuccess() { return success; }
     public Metadata getMetadata() { return metadata; }
-    public List<Exercise> getData() { return data; }
+    public List<UnifiedExerciseResponse> getData() { return data; }
 
     public static class Metadata {
         private long totalExercises;

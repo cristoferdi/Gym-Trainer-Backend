@@ -3,7 +3,9 @@ package com.softech.entrenaback.exercise;
 import com.softech.entrenaback.exercise.dto.ExerciseDetailResponse;
 import com.softech.entrenaback.exercise.dto.ExerciseListResponse;
 import com.softech.entrenaback.exercise.dto.MuscleEquipmentResponse;
+import com.softech.entrenaback.exercise.dto.UnifiedExerciseResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,19 +19,19 @@ public class ExerciseController {
     }
 
     @GetMapping
-    public ResponseEntity<ExerciseListResponse> list(
+    public ResponseEntity<ExerciseListResponse> list(Authentication auth,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String muscle,
             @RequestParam(required = false) String equipment,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "30") int limit) {
-        return ResponseEntity.ok(exerciseService.list(q, muscle, equipment, page, limit));
+        return ResponseEntity.ok(exerciseService.list(auth.getName(), q, muscle, equipment, page, limit));
     }
 
     @GetMapping("/{exerciseId}")
     public ResponseEntity<ExerciseDetailResponse> getById(@PathVariable String exerciseId) {
         var exercise = exerciseService.findById(exerciseId);
-        return ResponseEntity.ok(new ExerciseDetailResponse(exercise));
+        return ResponseEntity.ok(new ExerciseDetailResponse(UnifiedExerciseResponse.fromGlobal(exercise)));
     }
 
     @GetMapping("/muscles")

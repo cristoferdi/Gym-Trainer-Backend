@@ -13,10 +13,12 @@ public interface ExerciseRepository extends JpaRepository<Exercise, String> {
     @Query("SELECT e FROM Exercise e WHERE " +
             "(CAST(:q AS String) IS NULL OR LOWER(e.nameNormalized) LIKE LOWER(CONCAT('%', CAST(:q AS String), '%'))) AND " +
             "(CAST(:muscle AS String) IS NULL OR LOWER(e.targetMuscles) LIKE LOWER(CONCAT('%', CAST(:muscle AS String), '%'))) AND " +
-            "(CAST(:equipment AS String) IS NULL OR LOWER(e.equipments) LIKE LOWER(CONCAT('%', CAST(:equipment AS String), '%')))")
+            "(CAST(:equipment AS String) IS NULL OR LOWER(e.equipments) LIKE LOWER(CONCAT('%', CAST(:equipment AS String), '%'))) AND " +
+            "(e.id NOT IN :excludedIds)")
     Page<Exercise> search(@Param("q") String q,
                           @Param("muscle") String muscle,
                           @Param("equipment") String equipment,
+                          @Param("excludedIds") List<String> excludedIds,
                           Pageable pageable);
 
     @Query("SELECT DISTINCT e.targetMuscles FROM Exercise e ORDER BY e.targetMuscles")

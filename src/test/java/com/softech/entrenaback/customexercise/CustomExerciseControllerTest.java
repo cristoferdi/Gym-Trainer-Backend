@@ -173,7 +173,7 @@ class CustomExerciseControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Press Banca Modificado"))
                 .andExpect(jsonPath("$.muscle").value("Pecho completo"))
-                .andExpect(jsonPath("$.target").value("Pectorales mayores"));
+                .andExpect(jsonPath("$.isCustom").value(true));
 
         entityManager.flush();
         entityManager.clear();

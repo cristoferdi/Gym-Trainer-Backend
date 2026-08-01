@@ -1,17 +1,15 @@
 package com.softech.entrenaback.exercise.dto;
 
-import com.softech.entrenaback.exercise.Exercise;
-
 public class ExerciseDetailResponse {
 
     private boolean success;
-    private Exercise data;
+    private UnifiedExerciseResponse data;
 
-    public ExerciseDetailResponse(Exercise data) {
+    public ExerciseDetailResponse(UnifiedExerciseResponse data) {
         this.success = true;
         this.data = data;
     }
 
     public boolean isSuccess() { return success; }
-    public Exercise getData() { return data; }
+    public UnifiedExerciseResponse getData() { return data; }
 }

@@ -1,32 +1,23 @@
 package com.softech.entrenaback.assigned.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
 public class AssignedBlockDto {
 
     private String id;
-
-    @JsonProperty("_combined")
-    private Boolean combined;
-
+    private Boolean isCombined;
     private Integer series;
     private Integer reps;
-
-    @JsonProperty("rest_time")
     private String restTime;
-
     private String indications;
-
-    @JsonProperty("sub_exercises")
     private List<Map<String, Object>> subExercises;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    public Boolean getCombined() { return combined; }
-    public void setCombined(Boolean combined) { this.combined = combined; }
+    public Boolean getIsCombined() { return isCombined; }
+    public void setIsCombined(Boolean isCombined) { this.isCombined = isCombined; }
 
     public Integer getSeries() { return series; }
     public void setSeries(Integer series) { this.series = series; }
