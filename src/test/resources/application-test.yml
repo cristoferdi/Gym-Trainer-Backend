@@ -1,0 +1,19 @@
+jwt:
+  secret: test-secret-key-that-is-long-enough-for-hmac-sha-algorithm
+  expiration: 86400000
+
+gemini:
+  api-key: api-key-test
+  api-url: http://localhost:8089/test-endpoint
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/testdb
+    username: test
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect

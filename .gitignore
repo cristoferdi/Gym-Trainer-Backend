@@ -39,9 +39,7 @@ heapdump.*
 .env
 .env.local
 .env.*.local
-application.yml
 application.properties
-application-*.yml
 application-*.properties
 
 
@@ -60,5 +58,3 @@ out/
 tmp/
 temp/
 
-### Others ###
-exercises_es_v3.json
