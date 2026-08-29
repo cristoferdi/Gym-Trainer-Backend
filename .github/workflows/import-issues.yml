@@ -1,33 +1,49 @@
 name: Import Backlog Issues
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   create_issues:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-    
+
     steps:
-      - name: Descargar el código del repositorio
+      - name: Descargar el codigo del repositorio
         uses: actions/checkout@v4
+
+      - name: Validar JSON
+        run: |
+          echo "Validando backlog.json con jq..."
+          jq empty backlog.json
+          echo "JSON valido: $(jq length backlog.json) issues encontrados"
+
+      - name: Crear labels si no existen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Creando labels..."
+          jq -r '.[].labels[]' backlog.json | sort -u | while IFS= read -r label; do
+            echo "Verificando label: $label"
+            if ! gh label list --limit 100 --json name --jq ".[].name" | grep -Fxq "$label"; then
+              echo "Creando label: $label"
+              gh label create "$label" --color "ededed" --description "$label" 2>&1 || echo "No se pudo crear $label (puede que ya exista)"
+            else
+              echo "Label ya existe: $label"
+            fi
+          done
 
       - name: Leer JSON y crear los Issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Iniciando la lectura de backlog.json..."
-          
-          # Agregamos IFS= read -r para leer el texto crudo exactamente como viene
           jq -c '.[]' backlog.json | while IFS= read -r i; do
-            # Agregamos comillas dobles a "$i" para proteger los asteriscos
             TITLE=$(echo "$i" | jq -r '.title')
             BODY=$(echo "$i" | jq -r '.body')
             LABELS=$(echo "$i" | jq -r '.labels | join(",")')
-            
             echo "Creando issue: $TITLE"
             gh issue create --title "$TITLE" --body "$BODY" --label "$LABELS"
           done
-          
-          echo "¡Todos los issues fueron creados exitosamente!"
+          echo "Todos los issues fueron creados exitosamente!"
