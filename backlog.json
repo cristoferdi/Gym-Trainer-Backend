@@ -1,0 +1,482 @@
+[
+  {
+    "title": "Restrict CORS allowed origins in SecurityConfig",
+    "body": "### Current Issue\nIn `SecurityConfig.java` (line 67), the configuration `config.setAllowedOrigins(List.of(\"*\"))` allows any domain to make cross-origin requests to the API.\n\n### Impact\nIn a production environment, this misconfiguration exposes the application to Cross-Site Request Forgery (CSRF) and data exfiltration attacks from any malicious website.\n\n### Acceptance Criteria\n- Replace the wildcard `*` with specific trusted frontend origins.\n- Ensure external frontend clients can still connect.\n- Validate that requests from unauthorized origins are rejected with CORS errors.",
+    "labels": ["security", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Remove hardcoded PostgreSQL password from docker-compose",
+    "body": "### Current Issue\nThe database password (`POSTGRES_PASSWORD: 123andi123`) is hardcoded in plain text on line 6 of `docker-compose.yml`.\n\n### Impact\nCommitting plain-text credentials to the repository is a severe security vulnerability. Anyone with repository access can read the database password.\n\n### Acceptance Criteria\n- Replace the hardcoded password with an environment variable reference (e.g., `${POSTGRES_PASSWORD}`).\n- Create a `.env.example` file documenting the required variables.\n- Verify the application still connects to the database successfully using the `.env` file.",
+    "labels": ["security", "devops", "priority: critical"]
+  },
+  {
+    "title": "Remove default password fallback from application.yml",
+    "body": "### Current Issue\nIn `application.yml` (line 13), the datasource password is configured as `password: ${DB_PASSWORD:123andi123}`. If the `DB_PASSWORD` environment variable is not set, the real password is used as the default.\n\n### Impact\nA misconfigured deployment (missing env var) silently uses a known password, creating a security vulnerability that is hard to detect.\n\n### Acceptance Criteria\n- Remove the default value: change to `password: ${DB_PASSWORD}` with no fallback.\n- Ensure the application fails to start if `DB_PASSWORD` is not set.\n- Document the required environment variable in deployment docs.",
+    "labels": ["security", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Protect shared routine endpoint with rate limiting and secure tokens",
+    "body": "### Current Issue\nIn `SecurityConfig.java` (line 34), the path `/assigned-routines/shared/**` is in `permitAll()`. In `AssignedRoutineService.java` (line 155), the share URL is generated using `UUID.randomUUID()`, which is predictable with enough information.\n\n### Impact\nAn attacker can brute-force UUID v4 tokens to access other users' assigned routines without authentication.\n\n### Acceptance Criteria\n- Replace `UUID.randomUUID()` with cryptographically secure tokens (e.g., `SecureRandom` + `MessageDigest` or `TokenGenerator`).\n- Add rate limiting to the shared endpoint (e.g., max 10 requests per minute per IP).\n- Return 429 Too Many Requests when the limit is exceeded.",
+    "labels": ["security", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Implement rate limiting for authentication endpoint",
+    "body": "### Current Issue\nThe login endpoint `/auth/login` in `AuthController.java` (line 18) does not have rate limiting applied. Only the AI endpoint has protection via `RateLimiterService`.\n\n### Impact\nAn attacker can perform unlimited brute-force password guessing attempts without being blocked.\n\n### Acceptance Criteria\n- Apply rate limiting to `/auth/login` (e.g., max 5 attempts per minute per IP or email).\n- Return `429 Too Many Requests` status code when the limit is exceeded.\n- Add integration tests to verify the rate limiter blocks excessive requests.",
+    "labels": ["security", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Enforce stronger password validation on registration",
+    "body": "### Current Issue\nIn `RegisterRequest.java` (line 8), the password validation only requires `@Size(min = 6)`. No uppercase, numbers, or special characters are enforced.\n\n### Impact\nWeak passwords are trivially guessable, increasing the risk of account compromise through credential stuffing or brute-force attacks.\n\n### Acceptance Criteria\n- Add validation rules: at least one uppercase letter, one digit, and one special character.\n- Return a clear error message when the password does not meet requirements.\n- Update any existing tests that register with weak passwords.",
+    "labels": ["security", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Implement proper JWT refresh token mechanism",
+    "body": "### Current Issue\nIn `AuthController.java` (line 24), the `/auth/refresh` endpoint requires a valid authentication token. This is not a true refresh token — it should use a separate token with a longer expiration.\n\n### Impact\nUsers must re-authenticate when the access token expires, degrading UX. A separate refresh token improves security by allowing short-lived access tokens.\n\n### Acceptance Criteria\n- Implement a refresh token (separate JWT with longer expiration) returned alongside the access token on login/register.\n- Create a `/auth/refresh` endpoint that accepts only the refresh token.\n- Invalidate the refresh token after use (rotation) or on logout.\n- Store refresh tokens (or their hashes) in the database for revocation support.",
+    "labels": ["security", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Implement JWT token blacklist for logout and revocation",
+    "body": "### Current Issue\nIn `JwtService.java`, there is no blacklist mechanism. If a token is compromised, it remains valid until expiration.\n\n### Impact\nCompromised or stolen tokens cannot be revoked. Users have no way to log out or invalidate sessions.\n\n### Acceptance Criteria\n- Implement a token blacklist (Redis or database table) for revoked tokens.\n- Add a `/auth/logout` endpoint that blacklists the current token.\n- Check the blacklist in `JwtAuthFilter` before accepting a token.\n- Set an appropriate TTL on blacklist entries matching token expiration.",
+    "labels": ["security", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Stop exposing raw Student entities in SyncPullResponse",
+    "body": "### Current Issue\nIn `SyncPullResponse.java` (line 10), the `students` field is typed as `List<Student>`, returning raw JPA entities directly as HTTP response. This exposes internal fields like `trainer_id` and other fields not intended for external consumption.\n\n### Impact\nLeaking internal model data exposes sensitive information. It also causes potential lazy initialization exceptions and couples the API response to the database schema.\n\n### Acceptance Criteria\n- Replace `List<Student>` with a dedicated DTO (e.g., `StudentResponse`).\n- Ensure the DTO only exposes fields necessary for the client.\n- Update `SyncService.toAssignedResponse()` and related mapping code accordingly.",
+    "labels": ["security", "architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add validation annotations to SyncPushRequest",
+    "body": "### Current Issue\n`SyncPushRequest.java` has no `@Valid` annotations. The `operations` list field accepts null or an unbounded array.\n\n### Impact\nAn attacker can send an extremely large array of operations in a single request, causing memory exhaustion and denial of service.\n\n### Acceptance Criteria\n- Add `@NotNull` and `@Size(max = 100)` (or a reasonable limit) to the `operations` field.\n- Add validation annotations to `SyncOperation` fields (`op`, `entity`, `id`).\n- Return 400 Bad Request for invalid payloads.\n- Add unit tests for validation constraints.",
+    "labels": ["security", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add validation constraints to SyncOperation fields",
+    "body": "### Current Issue\nIn `SyncOperation.java`, the fields `op`, `entity`, `id`, and `data` have no validation constraints. Any value is accepted.\n\n### Impact\nInvalid or malicious data can be persisted to the database. No enforcement of allowed operation types or entity names.\n\n### Acceptance Criteria\n- Add `@NotBlank` to `op` and `entity` fields.\n- Restrict `op` to an enum or pattern (`CREATE`, `UPDATE`, `DELETE`).\n- Restrict `entity` to known entity types (`student`, `custom_exercise`, `routine`, `assigned_routine`).\n- Add `@Valid` to the operations list in `SyncPushRequest` to trigger cascading validation.",
+    "labels": ["security", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Implement input sanitization across all endpoints",
+    "body": "### Current Issue\nUser-supplied data from request bodies (student names, exercise names, descriptions, etc.) is stored directly in the database without sanitization across multiple files.\n\n### Impact\nIf the data is later rendered in a frontend, stored XSS attacks become possible. Malicious HTML/JavaScript could be injected through any user input field.\n\n### Acceptance Criteria\n- Create a sanitization utility that strips HTML tags and dangerous characters.\n- Apply sanitization to all string fields received from user input.\n- Add tests verifying that malicious input is sanitized before persistence.",
+    "labels": ["security", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Remove anonymous.disable() from SecurityConfig",
+    "body": "### Current Issue\nIn `SecurityConfig.java` (line 42), `anonymous.disable()` prevents the anonymous user from having a principal in the security context.\n\n### Impact\nThis can cause unexpected NullPointerExceptions in code that assumes `Authentication` is always non-null, and breaks the standard Spring Security anonymous handling.\n\n### Acceptance Criteria\n- Remove the `.anonymous(anonymous -> anonymous.disable())` line.\n- Verify all endpoints still behave correctly for unauthenticated requests.\n- Ensure the global exception handler catches any NPE from missing authentication.",
+    "labels": ["security", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Remove unused CustomExerciseResponse DTO class",
+    "body": "### Current Issue\n`CustomExerciseResponse.java` exists but is never used. Controllers return `UnifiedExerciseResponse` instead. This is dead code that creates confusion.\n\n### Impact\nDevelopers may mistakenly use the wrong DTO, leading to inconsistent API responses. Dead code increases maintenance burden.\n\n### Acceptance Criteria\n- Delete `CustomExerciseResponse.java` and its import references.\n- Verify the project compiles and all tests pass.\n- Confirm no reflection-based code references the deleted class.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Wrap SyncService.push() operations in a transaction",
+    "body": "### Current Issue\nIn `SyncService.java`, the `push()` method executes each operation independently. If operation 3 of 5 fails, operations 1-2 are persisted while 3-5 are not. There is no rollback or consistency guarantee.\n\n### Impact\nPartial sync states leave the client and server out of sync. The client receives a mixed success/error response with no clear retry strategy.\n\n### Acceptance Criteria\n- Wrap the entire `push()` method in a `@Transactional` annotation.\n- On any failure, roll back all operations (all-or-nothing).\n- Return clear error messaging indicating the entire batch failed.\n- Add integration tests verifying transaction rollback on failure.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Return structured error response instead of partial errors from sync push",
+    "body": "### Current Issue\nIn `SyncService.java` (line 48), the `push()` method catches exceptions per operation and returns them as part of the response. The client has no clear indication of whether to retry or not.\n\n### Impact\nClients cannot reliably determine the state of their data. Partial failures may lead to data corruption on retry.\n\n### Acceptance Criteria\n- After implementing all-or-nothing transactions (see previous issue), return a single success/error status for the batch.\n- On error, return the specific error message and failed operation details.\n- Document the retry strategy for clients.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Replace JPA entity leakage in SyncPullResponse with DTOs",
+    "body": "### Current Issue\n`SyncPullResponse` returns `List<Student>` (raw JPA entity) as HTTP response. This triggers lazy initialization exceptions and exposes the internal data model including foreign keys.\n\n### Impact\nLazy loading exceptions can crash the response. Internal field names and relationships are exposed to API consumers.\n\n### Acceptance Criteria\n- Create a `StudentSyncDto` with only the fields needed by clients.\n- Map Student entities to DTOs in `SyncService.pull()`.\n- Ensure no lazy-loaded associations are accessed during serialization.\n- Verify the API response matches the documented contract.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Refactor RoutineService.update() to preserve entity IDs",
+    "body": "### Current Issue\nIn `RoutineService.java` (line 68), the `update()` method deletes all RoutineDay children and recreates them from scratch, losing the original database IDs.\n\n### Impact\nAny external references to those IDs (assigned routines, client bookmarks, shared links) become broken after an update.\n\n### Acceptance Criteria\n- Implement a diff-based update strategy: update existing days, add new ones, remove deleted ones.\n- Preserve database IDs for days, blocks, and sub-exercises that are not deleted.\n- Add integration tests verifying ID preservation across updates.\n- Ensure orphan removal still works for explicitly deleted children.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Inject Spring-managed ObjectMapper in SeedRunner and AiService",
+    "body": "### Current Issue\nBoth `SeedRunner.java` and `AiService.java` create `new ObjectMapper()` instances instead of injecting the Spring-managed bean configured in `JacksonConfig`. Custom Jackson configurations (e.g., `JavaTimeModule`) are lost.\n\n### Impact\nDate serialization/deserialization may behave inconsistently. Configuration applied in `JacksonConfig` is ignored by these classes.\n\n### Acceptance Criteria\n- Inject `ObjectMapper` via constructor in `SeedRunner` and `AiService`.\n- Remove all `new ObjectMapper()` calls from these classes.\n- Verify all Jackson configuration from `JacksonConfig` is applied.\n- Run existing tests to confirm no regressions.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add SLF4J logging to all service classes",
+    "body": "### Current Issue\nThere are zero `Logger` instances across the entire application. All files lack any form of structured logging.\n\n### Impact\nIt is impossible to diagnose issues in production. There is no visibility into request processing, error conditions, or performance bottlenecks.\n\n### Acceptance Criteria\n- Add `private static final Logger log = LoggerFactory.getLogger(ClassName.class)` to all service and controller classes.\n- Log key events: method entry/exit for write operations, error conditions with stack traces, security events (login attempts, access denials).\n- Ensure log levels are appropriate (INFO for business events, WARN for recoverable errors, ERROR for failures).\n- Verify logging does not expose sensitive data (passwords, tokens).",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Replace generic exceptions with domain-specific exception classes",
+    "body": "### Current Issue\n`IllegalArgumentException` is used across multiple services to signal business errors, authentication errors, and validation errors. The `GlobalExceptionHandler` cannot distinguish between them.\n\n### Impact\nAll `IllegalArgumentException` responses return 400 Bad Request, even when 404 Not Found or 403 Forbidden would be appropriate. Error responses are misleading.\n\n### Acceptance Criteria\n- Create domain-specific exceptions: `TrainerNotFoundException`, `StudentNotFoundException`, `OwnershipViolationException`, etc.\n- Update `GlobalExceptionHandler` to map each exception to the correct HTTP status.\n- Replace all `IllegalArgumentException` throws in services with the appropriate domain exception.\n- Add tests verifying correct HTTP status codes for each exception type.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Extract common trainer lookup into a shared service or helper",
+    "body": "### Current Issue\nEvery service (StudentService, RoutineService, CustomExerciseService, AssignedRoutineService, ExerciseService, SyncService) independently calls `trainerRepository.findByEmail()` and throws `IllegalArgumentException(\"Entrenador no encontrado\")`. This pattern is repeated in 8+ places.\n\n### Impact\nCode duplication makes maintenance error-prone. Changing the lookup logic or error message requires updating every service.\n\n### Acceptance Criteria\n- Create a `TrainerContext` service or utility that encapsulates the email-to-Trainer resolution.\n- Inject and use this helper in all services that need the current trainer.\n- Ensure error handling is centralized and consistent.\n- Verify all existing tests still pass.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Replace SeedRunner with Flyway or Liquibase migrations",
+    "body": "### Current Issue\n`SeedRunner.java` is a `CommandLineRunner` that executes on every application startup. It seeds exercise data from a JSON file if the table is empty.\n\n### Impact\nRunning seed logic on every startup is fragile. It cannot handle schema evolution, is not idempotent, and mixes seed data with application lifecycle.\n\n### Acceptance Criteria\n- Add Flyway or Liquibase dependency to `pom.xml`.\n- Create a migration script that seeds the exercise data as an INSERT statement.\n- Remove the `SeedRunner` class.\n- Verify the seed data is applied correctly on a fresh database.\n- Ensure subsequent startups do not duplicate data.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Configure timeouts on RestTemplate bean",
+    "body": "### Current Issue\nIn `WebConfig.java`, the `RestTemplate` bean is created without any timeout configuration. If the Gemini API is slow or unresponsive, the calling thread blocks indefinitely.\n\n### Impact\nThread pool exhaustion under load. A single slow external API call can cascade into application-wide unresponsiveness.\n\n### Acceptance Criteria\n- Configure `connectTimeout` and `readTimeout` on the `RestTemplate` (e.g., 5 seconds connect, 30 seconds read).\n- Add error handling for timeout scenarios in `AiService`.\n- Log timeout events for monitoring.\n- Add tests simulating slow external responses.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Remove custom JacksonConfig ObjectMapper bean override",
+    "body": "### Current Issue\n`JacksonConfig.java` creates a new `ObjectMapper` bean that overrides Spring Boot's auto-configured one, losing built-in configurations like `JavaTimeModule` for `LocalDateTime` serialization.\n\n### Impact\n`LocalDateTime` fields in API responses may serialize incorrectly (e.g., as arrays instead of ISO strings). Other auto-configured features are lost.\n\n### Acceptance Criteria\n- Delete `JacksonConfig.java` entirely, or configure it to extend the default ObjectMapper (e.g., `@Bean public ObjectMapper objectMapper(ObjectMapperBuilder builder)`).\n- Verify `LocalDateTime` serialization works correctly in all API responses.\n- Run the full test suite to confirm no regressions.",
+    "labels": ["architecture", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Standardize DTO pattern: prefer records over mutable classes",
+    "body": "### Current Issue\nThe project mixes DTO patterns: some DTOs are Java records (e.g., `AuthResponse`, `ShareResponse`), while others are mutable classes with getters/setters (e.g., `RoutineResponse`, `AssignedRoutineResponse`). There is no clear convention.\n\n### Impact\nInconsistent code style reduces readability and increases cognitive load for developers.\n\n### Acceptance Criteria\n- Choose a single DTO pattern (records recommended for immutability).\n- Refactor all mutable DTOs to records (or vice versa, depending on team decision).\n- Update all mapping code that calls setters.\n- Verify all tests pass after refactoring.",
+    "labels": ["architecture", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add API versioning prefix (e.g., /api/v1/)",
+    "body": "### Current Issue\nThere is no API versioning strategy. All endpoints are served under the context path `/api` without a version prefix. Breaking changes will immediately affect all clients.\n\n### Impact\nClient applications cannot be migrated gradually. Any API change is a breaking change for all consumers.\n\n### Acceptance Criteria\n- Add a version prefix (e.g., `/api/v1/`) to all controller mappings.\n- Ensure the old context path still works via a redirect or alias during migration.\n- Document the versioning strategy.\n- Update API specification documents.",
+    "labels": ["api", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Refactor RoutineService to remove direct EntityManager usage",
+    "body": "### Current Issue\n`RoutineService.java` uses `@PersistenceContext EntityManager` directly alongside Spring Data repositories for removing days. This mixes two persistence access patterns inconsistently.\n\n### Impact\nDirect EntityManager usage bypasses Spring Data's abstraction layer, making the code harder to test and maintain.\n\n### Acceptance Criteria\n- Remove the `EntityManager` dependency from `RoutineService`.\n- Use only Spring Data repositories for all persistence operations.\n- Rely on `CascadeType.ALL` and `orphanRemoval` for child entity cleanup.\n- Verify all CRUD operations and cascade behaviors still work correctly.",
+    "labels": ["architecture", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Extract RoutineService.toResponse() mapping to MapStruct",
+    "body": "### Current Issue\nIn `RoutineService.java` (line 110), the `toResponse()` method has 50+ lines of manual mapping code converting entities to DTOs.\n\n### Impact\nManual mapping is error-prone and verbose. Adding new fields requires updating the mapping in multiple places.\n\n### Acceptance Criteria\n- Add MapStruct dependency to `pom.xml`.\n- Create a `RoutineMapper` interface with `@Mapper` annotation.\n- Replace the manual mapping with generated mapper calls.\n- Verify all routine-related tests pass with the new mapper.\n- Delete the manual `toResponse()` method.",
+    "labels": ["architecture", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Log serialization failures in CustomExerciseService.toJson()",
+    "body": "### Current Issue\nIn `CustomExerciseService.java` (line 107), the `toJson()` method catches `JsonProcessingException` and silently returns `\"[]\"`. The lost data is never reported.\n\n### Impact\nData is silently lost without any trace in logs. Debugging why an exercise has empty secondary muscles becomes very difficult.\n\n### Acceptance Criteria\n- Add a `log.error()` call with the exception details when serialization fails.\n- Throw a runtime exception or return a clear error to the caller instead of silently returning `\"[]\"`.\n- Add tests verifying the error handling behavior.",
+    "labels": ["architecture", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Remove unused joinListPipe() method from SeedRunner",
+    "body": "### Current Issue\nIn `SeedRunner.java` (line 54), the private method `joinListPipe()` is never called from anywhere in the codebase.\n\n### Impact\nDead code increases maintenance burden and can confuse developers about its intended purpose.\n\n### Acceptance Criteria\n- Delete the `joinListPipe()` method.\n- Verify the project compiles and all tests pass.\n- Search for any reflection-based references to confirm it is safe to remove.",
+    "labels": ["architecture", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Change ddl-auto from 'update' to 'validate' in production",
+    "body": "### Current Issue\nIn `application.yml` (line 11), `spring.jpa.hibernate.ddl-auto` is set to `update`. Hibernate can modify the production database schema automatically.\n\n### Impact\nAutomatic schema changes in production can cause data loss, index corruption, or unexpected column additions. This is explicitly warned against in Hibernate documentation.\n\n### Acceptance Criteria\n- Change `ddl-auto` to `validate` in `application.yml`.\n- Create an `application-prod.yml` with `ddl-auto: validate`.\n- Add Flyway/Liquibase for explicit schema migrations.\n- Verify the application starts correctly against the current schema.",
+    "labels": ["database", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Normalize CSV fields in Exercise table to proper relational storage",
+    "body": "### Current Issue\nIn `Exercise.java`, the fields `targetMuscles`, `bodyParts`, `equipments`, and `secondaryMuscles` store multiple values as comma-separated strings in a single column.\n\n### Impact\nThis violates First Normal Form (1NF). It is impossible to perform efficient joins, enforce referential integrity, or query by individual muscle/equipment. LIKE queries with leading wildcards cannot use indexes.\n\n### Acceptance Criteria\n- Create junction tables: `exercise_muscles`, `exercise_body_parts`, `exercise_equipments`, `exercise_secondary_muscles`.\n- Create a Flyway migration to transform existing CSV data into relational rows.\n- Update `ExerciseRepository` queries to use JOINs instead of LIKE.\n- Update `ExerciseService` and DTOs to work with the new schema.\n- Verify all exercise-related tests pass.",
+    "labels": ["database", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Standardize list storage format across all entities",
+    "body": "### Current Issue\nThree different formats are used for storing lists: `Exercise.instructions` uses JSONB, `SubExerciseDetail.instructions` uses pipe-separated via `StringListConverter`, and `CustomExercise.secondaryMuscles` uses a JSON string.\n\n### Impact\nInconsistent storage makes queries unpredictable, parsing logic fragile, and data migration difficult.\n\n### Acceptance Criteria\n- Choose a single format (JSONB recommended for PostgreSQL).\n- Create migrations to convert pipe-separated and JSON string columns to JSONB.\n- Replace `StringListConverter` with JSONB column type.\n- Update all entity mappings and query code accordingly.",
+    "labels": ["database", "spring-boot", "priority: critical"]
+  },
+  {
+    "title": "Replace AssignedBlock JSON snapshot with relational references",
+    "body": "### Current Issue\nIn `AssignedBlock.java`, `blockData` stores the entire exercise block as a serialized JSON string. This is a snapshot of the template at assignment time.\n\n### Impact\nIf the routine template is modified, the assigned routine becomes stale with no way to synchronize. The JSON blob cannot be queried or indexed.\n\n### Acceptance Criteria\n- Design a proper relational model for assigned blocks (referencing exercise IDs, sets, reps, etc.).\n- Create a migration to convert existing JSON data to relational rows.\n- Update `AssignedRoutineService` serialization/deserialization logic.\n- Ensure assigned routines can optionally sync with template changes.\n- Verify all assigned routine tests pass.",
+    "labels": ["database", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add foreign key constraints for exercise and day references",
+    "body": "### Current Issue\nIn `SubExerciseDetail.java`, `exerciseId` is a plain String with no foreign key to the `exercises` table. In `AssignedRoutineDay.java`, `dayId` references `RoutineDay` without a FK constraint.\n\n### Impact\nDeleting an exercise or routine day leaves orphaned references. Database integrity cannot be enforced at the schema level.\n\n### Acceptance Criteria\n- Add a foreign key from `sub_exercise_details.exercise_id` to `exercises.id` (or document why it is intentionally loose for snapshots).\n- Add a foreign key from `assigned_routine_days.day_id` to `routine_days.id` (if appropriate for the snapshot model).\n- Create a migration script for the constraints.\n- Verify no orphaned records exist before applying constraints.",
+    "labels": ["database", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add database indexes on frequently queried columns",
+    "body": "### Current Issue\nMultiple repository methods (`findByTrainerId()`, `findByStudentId()`, `findByShareUrl()`) query by columns that have no declared indexes.\n\n### Impact\nAs data grows, these queries will degrade to full table scans. Share URL lookups (which are unauthenticated) will become particularly slow.\n\n### Acceptance Criteria\n- Add indexes on: `students.trainer_id`, `routines.trainer_id`, `custom_exercises.trainer_id`, `assigned_routines.trainer_id`, `assigned_routines.student_id`, `assigned_routines.share_url`.\n- Create a Flyway migration for the indexes.\n- Verify query performance with EXPLAIN ANALYZE on sample data.\n- Ensure index creation does not lock tables in production.",
+    "labels": ["database", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add database integrity constraints (unique, check, not-null)",
+    "body": "### Current Issue\nMultiple entities lack important database constraints: no composite unique constraints, no check constraints (e.g., `age > 0`), and missing NOT NULL on important fields.\n\n### Impact\nInvalid data can be persisted (negative ages, duplicate entries for unique business keys). Data quality issues accumulate silently.\n\n### Acceptance Criteria\n- Add `CHECK (age > 0 AND age < 150)` constraint on students.age.\n- Add composite unique constraints where business logic requires it.\n- Audit all `nullable = false` annotations and add missing ones.\n- Create a migration script for all new constraints.\n- Verify existing data satisfies all new constraints before applying.",
+    "labels": ["database", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Replace LocalDateTime.now() with timezone-aware timestamps",
+    "body": "### Current Issue\nAll entities use `LocalDateTime.now()` in `@PrePersist` and `@PreUpdate` callbacks. `LocalDateTime` does not carry timezone information.\n\n### Impact\nIn multi-timezone deployments or clusters, timestamps are inconsistent. Comparing timestamps across regions produces incorrect results.\n\n### Acceptance Criteria\n- Change all `LocalDateTime` fields to `Instant` or `OffsetDateTime`.\n- Update `@PrePersist`/`@PreUpdate` to use `Instant.now()`.\n- Create a migration to handle any existing data (if needed).\n- Update all DTOs and API responses to use ISO-8601 format with timezone.\n- Verify all date-related tests pass.",
+    "labels": ["database", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Implement soft deletes across all entities",
+    "body": "### Current Issue\nAll entities use hard deletes via `repository.delete()`. Once deleted, data cannot be recovered.\n\n### Impact\nAccidental deletes cause permanent data loss. There is no audit trail of deletions. Recovery from mistakes requires database restores.\n\n### Acceptance Criteria\n- Add a `deletedAt` (nullable `Instant`) column to all entities.\n- Override `delete()` methods to set `deletedAt` instead of removing rows.\n- Add `@Where(clause = \"deleted_at IS NULL\")` or equivalent to filter deleted records by default.\n- Add an admin endpoint or scheduled job to purge soft-deleted records after a retention period.\n- Update all queries to exclude soft-deleted records.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add audit trail (createdBy/updatedBy) to all entities",
+    "body": "### Current Issue\nAll entities have `createdAt` and `updatedAt` fields but no `createdBy` or `updatedBy` fields. There is no record of which user made changes.\n\n### Impact\nIt is impossible to attribute changes to specific users for compliance, debugging, or dispute resolution.\n\n### Acceptance Criteria\n- Add `createdBy` and `updatedBy` fields to all entities.\n- Populate them automatically using the authenticated user from Spring Security context.\n- Create a JPA auditing configuration with `@EnableJpaAuditing` and `AuditorAware`.\n- Update DTOs to expose audit fields where appropriate.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Standardize column naming conventions across entities",
+    "body": "### Current Issue\nColumn naming is inconsistent: `disciplina` and `objetivos` are in Spanish while all other fields are in English. `is_combined` vs `isCustom` uses different conventions.\n\n### Impact\nInconsistent naming makes the schema harder to understand and increases the chance of typos in queries.\n\n### Acceptance Criteria\n- Rename Spanish columns to English equivalents via a migration.\n- Standardize boolean columns to use a consistent prefix (e.g., `is_` or none).\n- Update all entity annotations, queries, and DTOs.\n- Document the naming convention in the project README.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Review CascadeType.ALL usage on entity relationships",
+    "body": "### Current Issue\n`Routine.java` uses `CascadeType.ALL` with `orphanRemoval = true` on the `days` collection, and this cascades deeply through `RoutineDay -> ExerciseBlock -> SubExerciseDetail`.\n\n### Impact\nDeleting or modifying a parent entity can silently delete deeply nested children. This aggressive cascade can cause unexpected data loss if not managed carefully.\n\n### Acceptance Criteria\n- Audit all `CascadeType.ALL` usages and narrow to specific cascade types (PERSIST, MERGE, REMOVE as needed).\n- Document the cascade behavior for each relationship.\n- Ensure orphan removal only applies where logically required.\n- Add integration tests verifying cascade behavior.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Configure HikariCP connection pool settings",
+    "body": "### Current Issue\n`application.yml` has no HikariCP configuration. It relies entirely on Spring Boot defaults.\n\n### Impact\nUnder high load, default pool sizes may be insufficient, causing connection timeouts and degraded performance.\n\n### Acceptance Criteria\n- Configure `spring.datasource.hikari.maximum-pool-size`, `minimum-idle`, and `connection-timeout` in `application.yml`.\n- Add an `application-prod.yml` with production-tuned values.\n- Document the rationale for chosen values.\n- Monitor connection pool metrics after deployment.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Align Exercise.id generation strategy with other entities",
+    "body": "### Current Issue\nIn `Exercise.java`, the `@Id` field uses a manually assigned String ID from the seed data. All other entities use `@GeneratedValue(strategy = GenerationType.UUID)`.\n\n### Impact\nInconsistent ID generation makes the codebase harder to understand and complicates any future migration to a different ID strategy.\n\n### Acceptance Criteria\n- Evaluate whether Exercise IDs should switch to auto-generated UUIDs.\n- If keeping manual IDs, document the rationale clearly in the entity.\n- Ensure all foreign key references remain consistent.\n- Update seed data if the ID strategy changes.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add updated_at column to RoutineDay entity",
+    "body": "### Current Issue\n`RoutineDay.java` only has a `created_at` column. There is no `updated_at` field to track modifications.\n\n### Impact\nIt is impossible to determine when a routine day was last modified. This complicates sync logic and debugging.\n\n### Acceptance Criteria\n- Add `@Column(name = \"updated_at\", nullable = false)` field to `RoutineDay`.\n- Add `@PreUpdate` callback to set the timestamp.\n- Create a migration to add the column with a default value.\n- Verify all routine-related tests pass.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Use native JSONB for CustomExercise.secondaryMuscles",
+    "body": "### Current Issue\n`CustomExercise.secondaryMuscles` stores JSON as a plain String column, while `Exercise.instructions` uses native JSONB with `@JdbcTypeCode(SqlTypes.JSON)`.\n\n### Impact\nPlain JSON strings cannot be queried with PostgreSQL JSON operators. The inconsistency makes the schema harder to maintain.\n\n### Acceptance Criteria\n- Change the column type to JSONB via migration.\n- Update the entity annotation to use `@JdbcTypeCode(SqlTypes.JSON)`.\n- Remove the manual JSON serialization in `CustomExerciseService.toJson()`.\n- Verify all custom exercise tests pass.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Refactor RoutineRepository.delete() to handle deep cascade safely",
+    "body": "### Current Issue\n`RoutineRepository` inherits `delete()` from `JpaRepository`. With deep cascades (Routine -> Day -> Block -> SubExercise), the delete may fail or behave unexpectedly depending on orphan removal configuration.\n\n### Impact\nDeleting a routine with deeply nested children may fail due to constraint violations or leave orphaned records.\n\n### Acceptance Criteria\n- Add a custom `@Modifying @Query` or use `deleteInBatch()` if appropriate.\n- Verify all children are properly deleted via integration tests.\n- Benchmark delete performance with large nested structures.",
+    "labels": ["database", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Extract duplicated routine-building logic in RoutineService",
+    "body": "### Current Issue\n`RoutineService.java` has nearly identical code in `create()` (lines 30-60) and `update()` (lines 78-108) for building days, blocks, and sub-exercises from the request DTO.\n\n### Impact\nThe ~50 lines of duplicated code means any bug fix or feature change must be applied in two places. This is error-prone and violates DRY.\n\n### Acceptance Criteria\n- Extract the common logic into a private method (e.g., `buildDaysFromRequest(CreateRoutineRequest, Routine)`).\n- Call this method from both `create()` and `update()`.\n- Verify all routine CRUD tests pass after refactoring.\n- Add a comment explaining the shared logic.",
+    "labels": ["code-quality", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Replace magic strings with constants or enum",
+    "body": "### Current Issue\nError message strings like \"Entrenador no encontrado\", \"Alumno no encontrado\", \"Plantilla no pertenece a este entrenador\" are repeated verbatim across 8+ service files.\n\n### Impact\nTypos in repeated strings cause silent bugs. Changing an error message requires updating multiple files. No single source of truth.\n\n### Acceptance Criteria\n- Create a `Messages` constants class or enum with all error messages.\n- Replace all hardcoded strings with references to the constants.\n- Ensure error messages remain in Spanish (matching current behavior) or migrate to i18n.\n- Verify all tests that assert on error messages are updated.",
+    "labels": ["code-quality", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Configure RestTemplate with timeouts and error handling",
+    "body": "### Current Issue\nIn `WebConfig.java`, the `RestTemplate` bean is created with zero configuration — no timeouts, no interceptors, no error handling.\n\n### Impact\nUnbounded request durations can exhaust thread pools. No retry logic for transient failures. No request/response logging for debugging.\n\n### Acceptance Criteria\n- Configure connect timeout (5s) and read timeout (30s) using `HttpComponentsClientHttpRequestFactory`.\n- Add a `ClientHttpRequestInterceptor` for logging requests/responses.\n- Implement error handling in `AiService` for timeout and 5xx responses.\n- Add tests simulating slow and failing external services.",
+    "labels": ["code-quality", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Fix JacksonConfig to not override Spring Boot's ObjectMapper",
+    "body": "### Current Issue\n`JacksonConfig.java` creates a bare `new ObjectMapper()` bean, overriding Spring Boot's auto-configured ObjectMapper which includes `JavaTimeModule`, `Jdk8Module`, and other useful modules.\n\n### Impact\n`LocalDateTime` serialization breaks. Date fields in API responses may appear as arrays of numbers instead of ISO-8601 strings.\n\n### Acceptance Criteria\n- Delete `JacksonConfig.java` or refactor it to extend the auto-configured ObjectMapper.\n- Verify `LocalDateTime` serialization in `RoutineResponse.createdAt` produces ISO-8601 strings.\n- Run the full test suite.",
+    "labels": ["code-quality", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Extract shared test SQL data into a common base script",
+    "body": "### Current Issue\nThe trainer INSERT statements are duplicated across `student-test-data.sql`, `custom-exercise-test-data.sql`, and `assigned-test-data.sql`.\n\n### Impact\nUpdating test data requires editing 3 files. Inconsistencies between files can cause test failures.\n\n### Acceptance Criteria\n- Create a `common-test-data.sql` with shared trainer inserts.\n- Reference it from other test SQL files using Spring's `@Sql` with multiple scripts.\n- Remove duplicated INSERT statements from individual files.\n- Verify all tests still pass.",
+    "labels": ["code-quality", "testing", "priority: medium"]
+  },
+  {
+    "title": "Replace Java assert with JUnit Assertions in tests",
+    "body": "### Current Issue\nIn `StudentControllerTest.java` (line 68) and other test files, Java's `assert` keyword is used for test assertions instead of JUnit's `Assertions.assertEquals`.\n\n### Impact\nJava assertions can be disabled with the `-da` JVM flag. Tests would silently pass without actually verifying anything.\n\n### Acceptance Criteria\n- Replace all `assert` statements with `Assertions.assertEquals`, `Assertions.assertTrue`, etc.\n- Add import for `org.junit.jupiter.api.Assertions`.\n- Verify all tests pass with assertions enabled.",
+    "labels": ["code-quality", "testing", "priority: medium"]
+  },
+  {
+    "title": "Remove unused @JsonProperty annotations from CustomExerciseRequest",
+    "body": "### Current Issue\nIn `CustomExerciseRequest.java`, `@JsonProperty` annotations are used on record fields. Jackson already maps record component names correctly without explicit annotations.\n\n### Impact\nRedundant annotations add noise and suggest the naming requires manual override when it does not.\n\n### Acceptance Criteria\n- Remove all `@JsonProperty` annotations from `CustomExerciseRequest`.\n- Verify serialization/deserialization still works correctly in tests.\n- Document the convention: records do not need `@JsonProperty` unless names differ.",
+    "labels": ["code-quality", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Remove dead code from SeedRunner and CustomExerciseResponse",
+    "body": "### Current Issue\n`SeedRunner.joinListPipe()` (line 54) is a private method never called. `CustomExerciseResponse.java` is a full class that is never used (controllers use `UnifiedExerciseResponse`).\n\n### Impact\nDead code increases cognitive load and maintenance burden. Developers may waste time understanding code that serves no purpose.\n\n### Acceptance Criteria\n- Delete `joinListPipe()` from `SeedRunner`.\n- Delete `CustomExerciseResponse.java` entirely.\n- Search for any reflection or configuration references to the deleted class.\n- Verify the project compiles and all tests pass.",
+    "labels": ["code-quality", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Move cleanKey() from ExerciseController to a utility class",
+    "body": "### Current Issue\nIn `ExerciseController.java` (line 39), the `cleanKey()` method contains presentation logic (lowercasing, replacing spaces, removing special characters) that does not belong in a controller.\n\n### Impact\nControllers should only handle HTTP concerns. Business/presentation logic in controllers is hard to test and reuse.\n\n### Acceptance Criteria\n- Create a `KeyUtils` or `StringUtils` utility class.\n- Move `cleanKey()` logic to the utility.\n- Update `ExerciseController` to call the utility.\n- Add unit tests for the utility method.",
+    "labels": ["code-quality", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add pagination to student, routine, and custom-exercise list endpoints",
+    "body": "### Current Issue\n`GET /students`, `GET /routines`, and `GET /custom-exercises` return all records without pagination. Only `GET /exercises` supports pagination.\n\n### Impact\nWith thousands of records, response payloads become very large, causing slow responses and high memory usage on both client and server.\n\n### Acceptance Criteria\n- Add `page` and `limit` query parameters to all list endpoints (default page=1, limit=30).\n- Return a standard pagination response envelope with total count, total pages, and current page.\n- Update clients to use paginated responses.\n- Add tests verifying pagination behavior.",
+    "labels": ["api", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Standardize API response envelope across all endpoints",
+    "body": "### Current Issue\nExercise endpoints return `{success, metadata, data}`, while student and routine endpoints return raw arrays `[]`. There is no consistent response format.\n\n### Impact\nClients must handle multiple response shapes. Error handling becomes inconsistent. API documentation is harder to maintain.\n\n### Acceptance Criteria\n- Define a standard response envelope (e.g., `{success: boolean, data: ..., error: ...}`).\n- Update all endpoints to use the standard envelope.\n- Update the API specification document.\n- Verify all tests match the new response format.",
+    "labels": ["api", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add batch size limit to sync push endpoint",
+    "body": "### Current Issue\n`POST /sync/push` accepts an unbounded list of operations. An attacker can send thousands of operations in a single request.\n\n### Impact\nLarge batches can cause memory exhaustion, long transaction times, and denial of service.\n\n### Acceptance Criteria\n- Add `@Size(max = 100)` (or a reasonable limit) to the operations list in `SyncPushRequest`.\n- Return 400 Bad Request when the limit is exceeded.\n- Document the maximum batch size in the API specification.\n- Add a test verifying the limit is enforced.",
+    "labels": ["api", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Set a reasonable default for sync pull timestamp",
+    "body": "### Current Issue\nIn `SyncController.java`, if `lastSyncTimestamp` is not provided, the default is `LocalDateTime.MIN`, which returns ALL data for the trainer.\n\n### Impact\nFirst-time clients or clients that lose their sync state will download the entire dataset, which can be very large.\n\n### Acceptance Criteria\n- Return an error if `lastSyncTimestamp` is missing, requiring clients to explicitly request a full sync.\n- Or set a reasonable default (e.g., last 30 days) and document the behavior.\n- Add pagination to sync pull responses.\n- Update API documentation.",
+    "labels": ["api", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Support partial updates for PUT /routines/{id}",
+    "body": "### Current Issue\n`PUT /routines/{id}` requires the complete routine structure (all days, blocks, sub-exercises). It is not possible to update only the name or description.\n\n### Impact\nClients must fetch the full routine, modify one field, and send the entire structure back. This is inefficient and error-prone.\n\n### Acceptance Criteria\n- Support PATCH semantics or make PUT fields optional (keep existing values for omitted fields).\n- Document which fields can be partially updated.\n- Add tests for partial update scenarios.",
+    "labels": ["api", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add rate limit headers to API responses",
+    "body": "### Current Issue\nNo endpoints return `X-RateLimit-*` headers. Clients have no visibility into their rate limit status.\n\n### Impact\nClients cannot implement backoff strategies or display rate limit information to users.\n\n### Acceptance Criteria\n- Add `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` headers to all responses.\n- Update the rate limiter to track and expose these metrics.\n- Document the headers in the API specification.",
+    "labels": ["api", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Implement soft delete for DELETE endpoints",
+    "body": "### Current Issue\nAll DELETE endpoints perform hard deletes. Once a student, routine, or exercise is deleted, it cannot be recovered.\n\n### Impact\nAccidental deletions cause permanent data loss. No undo capability for users.\n\n### Acceptance Criteria\n- Implement soft deletes (see database issue D10) at the entity level.\n- Update DELETE endpoints to set `deletedAt` instead of removing rows.\n- Add a query filter to exclude soft-deleted records from list/get endpoints.\n- Provide an admin endpoint for permanent deletion if needed.",
+    "labels": ["api", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add ETag/If-None-Match support for routine detail endpoint",
+    "body": "### Current Issue\n`GET /routines/{id}` has no support for conditional requests via ETags or If-None-Match headers.\n\n### Impact\nClients must download the full routine even if it has not changed, wasting bandwidth and increasing latency.\n\n### Acceptance Criteria\n- Generate an ETag based on the routine's `updatedAt` timestamp.\n- Return `304 Not Modified` when the `If-None-Match` header matches.\n- Add tests verifying conditional request behavior.",
+    "labels": ["api", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add CAPTCHA to registration endpoint",
+    "body": "### Current Issue\n`POST /auth/register` has no CAPTCHA or bot protection. Automated scripts can create unlimited accounts.\n\n### Impact\nSpam accounts, credential stuffing attacks, and resource abuse.\n\n### Acceptance Criteria\n- Integrate a CAPTCHA service (e.g., reCAPTCHA, hCaptcha).\n- Validate the CAPTCHA token on the server before processing registration.\n- Return 400 Bad Request for invalid/missing CAPTCHA tokens.\n- Ensure the CAPTCHA does not block legitimate users.",
+    "labels": ["api", "security", "priority: medium"]
+  },
+  {
+    "title": "Fix partial update behavior in PUT /assigned-routines/{id}",
+    "body": "### Current Issue\n`PUT /assigned-routines/{id}` only updates `studentId` and `coachName`, ignoring all other fields in the request body.\n\n### Impact\nClients expect a full replacement semantics for PUT but get partial update behavior. This violates HTTP semantics and confuses API consumers.\n\n### Acceptance Criteria\n- Either implement full replacement (PUT) or rename to PATCH for partial updates.\n- Update all mutable fields from the request body.\n- Document the actual behavior in the API specification.\n- Add tests for both full and partial update scenarios.",
+    "labels": ["api", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add unit tests for service classes",
+    "body": "### Current Issue\nAll existing tests are integration tests requiring Testcontainers and a running database. There are zero unit tests for any service class.\n\n### Impact\nUnit tests are fast, isolated, and cheap to run. Without them, developers avoid running tests during development, leading to more bugs.\n\n### Acceptance Criteria\n- Create unit tests for `AuthService`, `StudentService`, `RoutineService`, `ExerciseService`, `CustomExerciseService`, `AssignedRoutineService`.\n- Mock all repository dependencies using Mockito.\n- Test all business logic branches (happy path, not found, ownership violation, validation errors).\n- Achieve at least 80% line coverage for service classes.",
+    "labels": ["testing", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add integration tests for SyncService endpoints",
+    "body": "### Current Issue\nThere are no tests for the `/sync/push` and `/sync/pull` endpoints. The sync feature is completely untested.\n\n### Impact\nRegression bugs in the sync logic can go undetected, potentially causing data loss or corruption for clients.\n\n### Acceptance Criteria\n- Create `SyncControllerTest` with integration tests.\n- Test push: create, update, delete operations for all entity types.\n- Test pull: verify correct data is returned based on `lastSyncTimestamp`.\n- Test error handling: invalid operations, unknown entities, ownership violations.\n- Test batch size limits.",
+    "labels": ["testing", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Replace hardcoded UUIDs in test data with dynamic generation",
+    "body": "### Current Issue\nTest SQL files use hardcoded UUIDs like `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`. These are fragile and make tests hard to maintain.\n\n### Impact\nTests depend on specific ID values. Changing the ID generation strategy breaks all tests. Developers must memorize ID patterns.\n\n### Acceptance Criteria\n- Generate test entities programmatically in `@BeforeEach` methods instead of SQL inserts.\n- Use repository methods to create and retrieve test data.\n- Remove hardcoded UUIDs from SQL files.\n- Verify all tests pass with dynamic IDs.",
+    "labels": ["testing", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add comprehensive security integration tests",
+    "body": "### Current Issue\n`AuthIntegrationTest.java` only verifies 401 without a token. It does not test: expired tokens, invalid tokens, role-based access, resource-level authorization.\n\n### Impact\nSecurity regressions can go undetected. Authorization bypasses may be introduced without triggering test failures.\n\n### Acceptance Criteria\n- Add tests for expired JWT tokens (return 401).\n- Add tests for malformed JWT tokens (return 401).\n- Add tests verifying trainer A cannot access trainer B's resources (students, routines, assigned routines).\n- Add tests for the shared routine endpoint (unauthenticated access).\n- Add tests for rate limiting behavior.",
+    "labels": ["testing", "security", "priority: high"]
+  },
+  {
+    "title": "Add edge case tests for input validation",
+    "body": "### Current Issue\nNo tests exist for edge cases such as extremely long input strings, special characters, Unicode, empty nested collections, or concurrent modifications.\n\n### Impact\nInput validation gaps can lead to data corruption, application crashes, or security vulnerabilities.\n\n### Acceptance Criteria\n- Add tests for maximum-length strings in all text fields.\n- Add tests for special characters and Unicode in user input.\n- Add tests for empty and null nested collections.\n- Add tests for concurrent modifications to the same resource.\n- Document any edge cases that require special handling.",
+    "labels": ["testing", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Change test ddl-auto from 'create-drop' to match production",
+    "body": "### Current Issue\nIn `application-test.yml` (line 11), `spring.jpa.hibernate.ddl-auto` is set to `create-drop`, which does not reflect the production schema.\n\n### Impact\nTests may pass against a schema that differs from production, hiding migration bugs or schema incompatibilities.\n\n### Acceptance Criteria\n- Change `ddl-auto` to `validate` in `application-test.yml`.\n- Ensure test database is provisioned with the same migrations used in production.\n- Verify all tests pass against the validated schema.",
+    "labels": ["testing", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Add concurrency tests for RateLimiterService",
+    "body": "### Current Issue\n`RateLimiterService` uses `ConcurrentHashMap` and `synchronized` blocks but has no tests verifying thread-safety under concurrent access.\n\n### Impact\nRace conditions could allow more requests than the configured limit, or cause exceptions under load.\n\n### Acceptance Criteria\n- Create a concurrent test that sends N requests from M threads simultaneously.\n- Verify the rate limit is enforced correctly under contention.\n- Verify no `ConcurrentModificationException` or data corruption occurs.\n- Use `CountDownLatch` or similar for synchronization.",
+    "labels": ["testing", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add load and stress tests for critical endpoints",
+    "body": "### Current Issue\nThere are no load tests or stress tests for any endpoint. Performance characteristics under load are unknown.\n\n### Impact\nProduction incidents caused by unexpected load go undetected until users report them.\n\n### Acceptance Criteria\n- Set up a load testing tool (e.g., Gatling, JMeter, k6).\n- Create load test scripts for: `/auth/login`, `/exercises`, `/routines`, `/sync/push`.\n- Define performance baselines (e.g., p95 response time < 500ms).\n- Run load tests in CI and fail on regression.",
+    "labels": ["testing", "performance", "priority: medium"]
+  },
+  {
+    "title": "Add .dockerignore file",
+    "body": "### Current Issue\nThere is no `.dockerignore` file. The `COPY` instructions in the Dockerfile copy everything, including `target/`, `.idea/`, `.git/`, `node_modules/`, and other unnecessary files.\n\n### Impact\nDocker image build context is unnecessarily large, slowing down builds and increasing image size.\n\n### Acceptance Criteria\n- Create `.dockerignore` excluding: `.git/`, `.idea/`, `target/`, `*.log`, `.env`, `.env.local`, `node_modules/`, `*.iml`.\n- Verify the Docker build context size is reduced.\n- Verify the application still builds and runs correctly in Docker.",
+    "labels": ["devops", "priority: high"]
+  },
+  {
+    "title": "Switch Dockerfile runtime image from JDK to JRE",
+    "body": "### Current Issue\nIn `Dockerfile` (line 11), the runtime stage uses `eclipse-temurin:21-jdk-alpine`. A JDK includes development tools not needed at runtime.\n\n### Impact\nThe production image is significantly larger than necessary (JDK ~300MB vs JRE ~100MB). Larger images mean slower pulls and more attack surface.\n\n### Acceptance Criteria\n- Change the base image to `eclipse-temurin:21-jre-alpine`.\n- Verify the application starts and runs correctly.\n- Measure and document the image size reduction.",
+    "labels": ["devops", "priority: high"]
+  },
+  {
+    "title": "Add HEALTHCHECK instruction to Dockerfile",
+    "body": "### Current Issue\nThe `Dockerfile` has no `HEALTHCHECK` instruction. Docker and Kubernetes cannot determine if the application is actually healthy.\n\n### Impact\nOrchestrators may route traffic to unhealthy containers. Failed health checks are not detected automatically.\n\n### Acceptance Criteria\n- Add a `HEALTHCHECK` instruction using `curl` to the actuator health endpoint (once Actuator is added).\n- Set appropriate intervals and timeouts.\n- Verify Docker reports container health status correctly.",
+    "labels": ["devops", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Optimize Dockerfile with dependency caching",
+    "body": "### Current Issue\nIn `Dockerfile` (line 5), `COPY pom.xml .` and `COPY src ./src` are separate layers, but Maven dependencies are not cached between builds.\n\n### Impact\nEvery code change triggers a full Maven dependency download, significantly slowing down builds.\n\n### Acceptance Criteria\n- Copy `pom.xml` first, run `mvn dependency:go-offline`, then copy `src/`.\n- Verify subsequent builds with only source changes skip dependency download.\n- Document the build time improvement.",
+    "labels": ["devops", "priority: high"]
+  },
+  {
+    "title": "Add Spring Boot Actuator for health and metrics",
+    "body": "### Current Issue\nThere is no Spring Boot Actuator dependency. The application has no health check endpoints, metrics, or operational information.\n\n### Impact\nIt is impossible to monitor the application's health, track performance metrics, or integrate with observability tools (Prometheus, Grafana).\n\n### Acceptance Criteria\n- Add `spring-boot-starter-actuator` dependency to `pom.xml`.\n- Expose `/actuator/health` and `/actuator/info` endpoints.\n- Configure Actuator to not expose sensitive endpoints by default.\n- Integrate with Docker HEALTHCHECK.\n- Document available endpoints.",
+    "labels": ["devops", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Create application-prod.yml with production-safe configuration",
+    "body": "### Current Issue\nOnly `application.yml` and `application-test.yml` exist. There is no `application-prod.yml` with secure defaults for production deployment.\n\n### Impact\nProduction deployments may use development defaults (e.g., verbose logging, permissive CORS, debug endpoints).\n\n### Acceptance Criteria\n- Create `application-prod.yml` with: `ddl-auto: validate`, restricted CORS, minimal logging, Actuator exposure limited to health/info.\n- Ensure all secrets come from environment variables with no defaults.\n- Document the production configuration in deployment docs.",
+    "labels": ["devops", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Document required environment variables",
+    "body": "### Current Issue\nThere is no `.env.example` or documentation listing the required environment variables (`JWT_SECRET`, `DATABASE_URL`, `DB_USERNAME`, `DB_PASSWORD`, `GEMINI_API_KEY`, `PORT`).\n\n### Impact\nNew developers and deployers must read the source code to discover required configuration. Misconfigurations are common.\n\n### Acceptance Criteria\n- Create `.env.example` with all required variables and placeholder values.\n- Add a section in the project README explaining each variable.\n- Ensure the application fails fast with a clear error if any variable is missing.",
+    "labels": ["devops", "priority: high"]
+  },
+  {
+    "title": "Add healthcheck to docker-compose postgres service",
+    "body": "### Current Issue\nIn `docker-compose.yml`, the `postgres` service has no `healthcheck` configuration. The application may start before the database is ready.\n\n### Impact\nThe Spring Boot application may fail to connect to the database on startup, causing crash loops.\n\n### Acceptance Criteria\n- Add `healthcheck` with `pg_isready` command to the postgres service.\n- Add `depends_on` with `condition: service_healthy` to the application service.\n- Verify the application waits for the database to be ready.",
+    "labels": ["devops", "priority: medium"]
+  },
+  {
+    "title": "Add restart policy to docker-compose services",
+    "body": "### Current Issue\n`docker-compose.yml` has no `restart` policy. If a service crashes, it stays down.\n\n### Impact\nManual intervention is required to restart crashed services, increasing downtime.\n\n### Acceptance Criteria\n- Add `restart: unless-stopped` to all services.\n- Verify services restart automatically after `docker compose stop` and `docker compose start`.\n- Test crash recovery by killing a process manually.",
+    "labels": ["devops", "priority: medium"]
+  },
+  {
+    "title": "Add network isolation to docker-compose",
+    "body": "### Current Issue\nAll services in `docker-compose.yml` are on the default network. There is no isolation between services.\n\n### Impact\nAll containers can communicate with each other, increasing the attack surface if one container is compromised.\n\n### Acceptance Criteria\n- Define explicit networks (e.g., `frontend`, `backend`).\n- Place the application and postgres on the backend network only.\n- Verify the application can reach postgres but not external services directly.",
+    "labels": ["devops", "priority: medium"]
+  },
+  {
+    "title": "Add resource limits to docker-compose services",
+    "body": "### Current Issue\n`docker-compose.yml` has no `deploy.resources.limits` configured for CPU or memory.\n\n### Impact\nA memory leak in the application can consume all host resources, causing the entire system to fail.\n\n### Acceptance Criteria\n- Set memory limits (e.g., `512m` for app, `256m` for postgres).\n- Set CPU limits (e.g., `0.5` cores).\n- Monitor resource usage to tune limits appropriately.\n- Verify the application functions within the set limits.",
+    "labels": ["devops", "priority: medium"]
+  },
+  {
+    "title": "Fix N+1 query problem in RoutineService.toResponse()",
+    "body": "### Current Issue\nIn `RoutineService.java` (line 110), the `toResponse()` method lazy-loads `days`, then `blocks`, then `subExercises` in a cascading manner. Each level triggers a separate SQL query.\n\n### Impact\nA routine with 3 days, 5 blocks per day, and 2 exercises per block generates 1 + 3 + 15 + 30 = 49 SQL queries instead of 1-2.\n\n### Acceptance Criteria\n- Add `@EntityGraph` or `JOIN FETCH` to the `findByTrainerId()` and `findById()` queries.\n- Verify the query count is reduced to 1-2 queries using Hibernate SQL logging.\n- Benchmark response time before and after the fix.\n- Ensure all routine tests pass.",
+    "labels": ["performance", "spring-boot", "priority: high"]
+  },
+  {
+    "title": "Replace leading-wildcard LIKE queries with full-text search",
+    "body": "### Current Issue\nIn `ExerciseRepository.java` (line 10), the search query uses `LIKE '%query%'` which cannot use standard B-tree indexes in PostgreSQL.\n\n### Impact\nWith thousands of exercises, every search performs a full table scan (O(n) complexity).\n\n### Acceptance Criteria\n- Implement PostgreSQL full-text search using `tsvector` and `tsquery`.\n- Create a GIN index on the `name_normalized` column.\n- Update the repository query to use `@@` full-text search operator.\n- Verify search performance with EXPLAIN ANALYZE.\n- Maintain backward compatibility with the existing API contract.",
+    "labels": ["performance", "database", "priority: high"]
+  },
+  {
+    "title": "Fix findDistinctTargetMuscles to return actual distinct values",
+    "body": "### Current Issue\nIn `ExerciseRepository.java` (line 21), `findDistinctTargetMuscles()` returns `DISTINCT e.targetMuscles`, but `targetMuscles` is a CSV string. This returns unique CSV strings, not individual muscle values.\n\n### Impact\nThe muscles dropdown shows combined strings like \"Pecho,Tríceps\" instead of individual values like \"Pecho\", \"Tríceps\".\n\n### Acceptance Criteria\n- If CSV columns are normalized to relational tables (see D2), query the junction table directly.\n- If keeping CSV temporarily, use PostgreSQL `unnest(string_to_array(...))` to split and distinct.\n- Return a sorted list of individual muscle/equipment values.",
+    "labels": ["performance", "database", "priority: high"]
+  },
+  {
+    "title": "Add pagination to sync pull endpoint",
+    "body": "### Current Issue\nIn `SyncService.java` (line 60), the `pull()` method returns all modified records since a timestamp with no pagination or limit.\n\n### Impact\nA trainer with thousands of students, routines, and assignments will receive an extremely large response, potentially causing timeouts or memory issues.\n\n### Acceptance Criteria\n- Add `page` and `limit` parameters to the pull endpoint.\n- Return a `nextPageToken` or cursor for fetching subsequent pages.\n- Set a maximum page size (e.g., 100 records per entity type).\n- Document the pagination behavior in the API specification.",
+    "labels": ["performance", "api", "priority: high"]
+  },
+  {
+    "title": "Add caching for exercise catalog data",
+    "body": "### Current Issue\nThere are no `@Cacheable` annotations anywhere in the application. Exercise catalog data (which is essentially static) is queried from the database on every request.\n\n### Impact\nRepeated requests for the exercise list generate unnecessary database load. Response times are higher than necessary.\n\n### Acceptance Criteria\n- Add `spring-boot-starter-cache` and a cache provider (e.g., Caffeine).\n- Add `@Cacheable` to `ExerciseRepository` queries and `ExerciseService` methods.\n- Implement cache eviction when exercises are seeded or updated.\n- Verify cache hit rates using Actuator metrics.\n- Benchmark response time improvement.",
+    "labels": ["performance", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Make RateLimiterService distributed using Redis",
+    "body": "### Current Issue\n`RateLimiterService` stores rate limit data in a `ConcurrentHashMap` on a single JVM instance. In a multi-instance deployment, each instance has its own counter.\n\n### Impact\nRate limits are not enforced across instances. An attacker can send N * maxRequests requests by hitting different instances.\n\n### Acceptance Criteria\n- Add Spring Data Redis dependency.\n- Implement a Redis-based sliding window rate limiter.\n- Configure Redis connection in `application.yml`.\n- Verify rate limits are enforced across multiple application instances.\n- Add tests simulating distributed rate limiting.",
+    "labels": ["performance", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Inject ObjectMapper in AiService instead of creating new instance",
+    "body": "### Current Issue\nIn `AiService.java` (line 57), `parseExercise()` creates `new ObjectMapper()` on every call instead of using the Spring-managed bean.\n\n### Impact\nEach call creates a new ObjectMapper instance, which is expensive and loses any configured modules or customizations.\n\n### Acceptance Criteria\n- Inject `ObjectMapper` via constructor.\n- Remove the `new ObjectMapper()` call.\n- Verify the injected ObjectMapper has the correct configuration.\n- Add a performance test measuring serialization throughput.",
+    "labels": ["performance", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Configure HikariCP connection pool for production workloads",
+    "body": "### Current Issue\n`application.yml` has no HikariCP configuration. Default pool size (10) may be insufficient for production traffic.\n\n### Impact\nUnder load, the application may exhaust the connection pool, causing request timeouts and errors.\n\n### Acceptance Criteria\n- Configure `maximum-pool-size` based on expected load (e.g., 20-50).\n- Configure `minimum-idle` to maintain warm connections.\n- Configure `connection-timeout` to fail fast when pool is exhausted.\n- Monitor pool metrics via Actuator.\n- Document the configuration rationale.",
+    "labels": ["performance", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Add HTTP connection pooling to RestTemplate",
+    "body": "### Current Issue\nIn `WebConfig.java`, `RestTemplate` is created without explicit HTTP client configuration. Depending on the default, each request may create a new HTTP connection.\n\n### Impact\nHigh-frequency calls to the Gemini API create and destroy TCP connections repeatedly, adding latency and resource overhead.\n\n### Acceptance Criteria\n- Configure `HttpComponentsClientHttpRequestFactory` with connection pooling.\n- Set `maxTotal` and `defaultMaxPerRoute` connections.\n- Configure connection time-to-live.\n- Verify connection reuse with logging.",
+    "labels": ["performance", "spring-boot", "priority: medium"]
+  },
+  {
+    "title": "Fix N+1 query in StudentService list endpoint",
+    "body": "### Current Issue\nIn `StudentService.java` (line 33), `findByTrainerId()` returns students with `trainer` mapped as LAZY. If the controller or serialization accesses the trainer, it triggers N+1 queries.\n\n### Impact\nListing students generates 1 + N queries (one per student) to load the trainer association.\n\n### Acceptance Criteria\n- Add `@EntityGraph(attributePaths = {\"trainer\"})` to `findByTrainerId()`.\n- Or use a JPQL `JOIN FETCH` query.\n- Verify the query count is reduced to 1.\n- Ensure the trainer is not serialized in the student response (already marked `@JsonIgnore`).",
+    "labels": ["performance", "spring-boot", "priority: medium"]
+  }
+]

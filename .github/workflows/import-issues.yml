@@ -1,0 +1,35 @@
+name: Import Backlog Issues
+
+# workflow_dispatch permite que actives esta acción manualmente con un botón.
+# Así evitamos que se creen issues duplicados cada vez que subes código.
+on:
+  workflow_dispatch:
+
+
+jobs:
+  create_issues:
+    runs-on: ubuntu-latest # GitHub te presta un servidor Ubuntu para correr esto
+    permissions:
+      issues: write # Le damos permiso al bot para escribir issues en tu repo
+
+    steps:
+      - name: Descargar el código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Leer JSON y crear los Issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Iniciando la lectura de backlog.json..."
+
+          # Usamos jq (una herramienta de Linux) para leer el JSON y el CLI de GitHub (gh) para crear los issues
+          jq -c '.[]' backlog.json | while read i; do
+            TITLE=$(echo $i | jq -r '.title')
+            BODY=$(echo $i | jq -r '.body')
+            LABELS=$(echo $i | jq -r '.labels | join(",")')
+
+            echo "Creando issue: $TITLE"
+            gh issue create --title "$TITLE" --body "$BODY" --label "$LABELS"
+          done
+
+          echo "¡Todos los issues fueron creados exitosamente!"
