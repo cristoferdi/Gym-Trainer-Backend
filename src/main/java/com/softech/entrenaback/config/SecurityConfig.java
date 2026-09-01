@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/register",
                         "/auth/login",
                         "/auth/refresh",
-                        "/api/assigned-routines/shared/**").permitAll()
+                        "/assigned-routines/shared/**").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
@@ -66,9 +66,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
         var config = new CorsConfiguration();
-        config.setAllowedOrigins(properties.allowedOrigins()); // List.of("http://localhost:3000")
-        config.setAllowedMethods(List.of("GET", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Content-Type"));
+        config.setAllowedOrigins(properties.allowedOrigins());
+        config.setAllowedMethods(List.of("GET", "POST", "PUT","DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization","Content-Type"));
 
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
