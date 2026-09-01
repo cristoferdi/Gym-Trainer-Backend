@@ -1,6 +1,15 @@
-# yaml-language-server: $schema=https://coderabbit.ai/export/schema.json
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
 language: "en-US"
-tone_instructions: "Professional, direct, and educational. Explain the underlying problem and the relevant Spring/Hibernate concept. Do not write the full code solution automatically; guide the developer to understand the fix."
+
+tone_instructions: >
+  Professional, direct, and educational.
+  Explain the underlying problem, why it matters,
+  and the relevant Spring/Hibernate concept.
+  Do not provide the full code solution automatically.
+  Prefer explaining the reasoning, trade-offs, and possible approaches
+  so the developer can implement the fix manually.
+
 early_access: false
 
 reviews:
@@ -10,62 +19,103 @@ reviews:
   review_status: true
   collapse_walkthrough: true
   changed_files_summary: true
-  auto_review: true
-  auto_title_placeholder: "@coderabbitai"
-  
-  system_prompt: |
-    You are an expert reviewer for "Gym Trainer Backend" (Spring Boot 4.0.6, Java 21, PostgreSQL 15, Spring Security + JWT).
-    This project prioritizes learning and maintainability.
-    Strict Project Rules:
-    1. Database: `ddl-auto: update` is forbidden in production.
-    2. Security: CORS must not use wildcards (*). JWT requires proper expiration handling. Secrets must use environment variables.
-    3. Language: User messages/domain terms are in Spanish, but code (classes, variables) must be in English.
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
 
   path_instructions:
     - path: "src/main/java/**/controller/**"
       instructions: |
-        Review REST API design, exception handling (@ControllerAdvice), and DTO validations. 
-        Ensure no raw entities (e.g., `List<Student>`) are exposed to the client; enforce the use of Response DTOs. Check for proper pagination in list endpoints.
-        
+        Review REST API design, validation, exception handling, and security boundaries.
+
+        Check that:
+        - Controllers do not expose JPA entities directly.
+        - Response DTOs are used for API responses.
+        - Request DTOs are validated appropriately.
+        - Global exception handling is used consistently.
+        - Collection/list endpoints use pagination when appropriate.
+        - Public and protected endpoints are intentional and correctly secured.
+        - HTTP status codes are appropriate.
+        - Controllers remain thin and do not contain business logic.
+
     - path: "src/main/java/**/service/**"
       instructions: |
-        Review transaction boundaries (@Transactional), dependency injection, and business logic.
-        Ensure `@Transactional` is used correctly (e.g., all-or-nothing for sync operations). 
-        Do not allow manual instantiation of beans like `new ObjectMapper()` or `new RestTemplate()`; enforce constructor injection.
+        Review service-layer responsibilities, transaction boundaries, business logic, and dependency injection.
+
+        Check that:
+        - @Transactional is applied at appropriate service boundaries.
+        - Read-only operations use readOnly transactions when beneficial.
+        - Multi-step write operations preserve atomicity.
+        - Business logic is not unnecessarily duplicated.
+        - Constructor injection is used.
+        - Spring-managed beans are not manually instantiated.
+        - Services do not become orchestration-heavy god classes.
+
+        When identifying a problem, explain the transaction or architectural concept involved instead of providing the complete refactor.
 
     - path: "src/main/java/**/repository/**"
       instructions: |
-        Review SQL query efficiency and pagination usage.
-        CRITICAL: Actively look for and prevent N+1 query problems. Suggest `@EntityGraph` or `JOIN FETCH` for complex relationships. 
-        Flag inefficient queries like `LIKE '%query%'` starting with a wildcard.
+        Review JPA/Hibernate query design, database access patterns, pagination, and query performance.
+
+        CRITICAL:
+        - Actively look for potential N+1 query problems.
+        - Explain how the query execution may behave at runtime.
+        - Consider EntityGraph, JOIN FETCH, DTO projections, dedicated queries, batching, or other appropriate strategies.
+        - Do not assume one solution is universally correct.
+        - Explain trade-offs between possible solutions.
+
+        Also review:
+        - Pagination correctness and sorting behavior.
+        - Unnecessary eager fetching or inefficient joins.
+        - Leading-wildcard LIKE searches when they may prevent efficient index usage.
 
     - path: "src/main/java/**/config/**"
       instructions: |
-        Strictly audit security and infrastructure configurations.
-        Ensure CORS has explicit origins. CSRF disable is only acceptable for stateless JWT.
-        Verify that `RestTemplate` has appropriate connect and read timeouts configured.
+        Strictly review security and infrastructure configuration.
+
+        Check:
+        - CORS uses explicit origins and does not use wildcard origins.
+        - Stateless JWT authentication is configured consistently.
+        - CSRF is disabled only when the application's authentication model makes that appropriate.
+        - JWT expiration is enforced.
+        - Secrets are provided through environment variables.
+        - Authentication and authorization rules are correctly separated.
+        - Outbound HTTP clients have explicit connection and request/read timeouts.
 
     - path: "src/main/resources/application*.yml"
       instructions: |
-        Audit for sensitive data and environment-specific settings.
-        Ensure no hardcoded passwords or secrets (JWT_SECRET, DB_PASSWORD, GEMINI_API_KEY). Ensure production profiles do not use `ddl-auto: update`.
+        Audit configuration for:
+        - Hardcoded secrets (JWT secrets, database passwords, API keys).
+        - Environment-specific configuration mistakes.
+        - Production settings accidentally inherited from development.
+        
+        Production must not use `ddl-auto: update`.
 
     - path: "src/test/**"
       instructions: |
-        Enforce JUnit 5 (`Assertions`) over native Java `assert`. Ensure tests use Testcontainers properly and don't rely on hardcoded UUIDs.
+        Review test quality and correctness.
+
+        Check that:
+        - JUnit 5 assertions are used instead of native Java assert statements.
+        - Tests verify behavior rather than implementation details.
+        - Edge cases and failure paths are covered.
+        - Integration tests use Testcontainers appropriately when real infrastructure behavior matters.
+        - Tests do not depend on brittle hardcoded identifiers.
+
+chat:
+  auto_reply: true
 
 tools:
   pmd:
     enabled: true
-  checkov:
-    enabled: true
   semgrep:
+    enabled: true
+  checkov:
     enabled: true
   actionlint:
     enabled: true
   fbinfer:
     enabled: true
     enable_java: true
-
-chat:
-  auto_reply: true
