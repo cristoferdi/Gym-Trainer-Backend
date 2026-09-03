@@ -27,7 +27,7 @@ Puerto por defecto: `3001` con `server.servlet.context-path=/api` → URLs efect
 
 ## 3. Estructura del proyecto
 
-```
+```text
 entrenaback/
 ├── pom.xml
 ├── docker-compose.yml
@@ -122,7 +122,7 @@ export CORS_FRONTEND_ORIGIN="http://localhost:3000"
 
 ```bash
 docker build -t entrenaback .
-docker run -p 3000:3000 --env-file .env entrenaback
+docker run -p 3000:3001 --env-file .env entrenaback
 # Nota: Dockerfile expone 3000 pero application.yml usa 3001 (PORT). Ajusta PORT=3000 al correr en contenedor.
 ```
 
@@ -200,7 +200,7 @@ docker run -p 3000:3000 --env-file .env entrenaback
 
 ## 9. Deuda técnica destacada (resumen de backlog.json)
 
-- **Seguridad (critical):** CORS `*`, password hardcodeado, `DB_PASSWORD` con fallback, `UUID.randomUUID` para share tokens, sin rate limit en `/auth/login`, password validation débil (`@Size(min=6)` solo), sin blacklist JWT.
+- **Seguridad (critical):** `UUID.randomUUID` para share tokens, sin rate limit en `/auth/login`, password validation débil (`@Size(min=6)` solo), sin blacklist JWT.
 - **Arquitectura (high):** entidades expuestas en `SyncPullResponse`, `SyncPushRequest` sin validación, `SyncService.push()` sin `@Transactional`, `RoutineService.update()` recrea IDs, `new ObjectMapper()` en `SeedRunner`/`AiService`, cero logging SLF4J, `IllegalArgumentException` genérico, `SeedRunner` debe migrar a Flyway/Liquibase, `RestTemplate` sin timeouts, `JacksonConfig` pisa ObjectMapper auto-configurado.
 - **DB (critical/high):** `ddl-auto: update` en prod, campos CSV en `Exercise`, formatos de lista inconsistentes (JSONB vs pipe vs JSON string), `AssignedBlock.blockData` como JSON blob, sin FKs, sin índices, sin constraints, `LocalDateTime` sin timezone.
 - **API/Calidad:** sin paginación en listados, envelope de respuesta inconsistente, sin límite de batch en sync, etc. Ver `backlog.json` completo para lista exhaustiva.
