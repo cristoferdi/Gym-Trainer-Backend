@@ -3,13 +3,10 @@
 language: "en-US"
 
 tone_instructions: >
-  Professional, direct, and educational.
-  Explain the underlying problem, why it matters,
-  and the relevant Spring/Hibernate concept.
-  Do not provide the full code solution automatically.
-  Prefer explaining the reasoning, trade-offs, and possible approaches
-  so the developer can implement the fix manually.
-
+  Professional, direct, and educational. Explain the problem, impact, and
+  relevant Spring/Hibernate concept. Do not automatically provide full code.
+  Explain reasoning, trade-offs, and possible approaches for the developer.
+  
 early_access: false
 
 reviews:
