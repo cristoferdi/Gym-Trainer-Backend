@@ -1,9 +1,32 @@
 services:
   postgres:
     image: postgres:15
+
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: 123andi123
-      POSTGRES_DB: entrenaback
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+
     ports:
-    - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
+
+    volumes:
+      # PostgreSQL aplica POSTGRES_USER, POSTGRES_PASSWORD y POSTGRES_DB solo al
+      # inicializar un directorio vacío. Un volumen existente conserva usuarios,
+      # passwords y bases de datos aunque cambien esas variables.
+      # Para rotar credenciales sin perder datos, cambia el password del rol en
+      # PostgreSQL y alinea DB_USERNAME y DB_PASSWORD en Spring Boot. DATABASE_URL
+      # debe apuntar al nombre de la base conservada; cambiar DB_NAME no la renombra.
+      # Si los datos locales son descartables, recrea todo explícitamente con:
+      #   docker compose down -v
+      #   docker compose up -d postgres
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:

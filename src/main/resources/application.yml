@@ -1,5 +1,20 @@
+spring:
+
+  config:
+    import: optional:file:.env[.properties]
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/${DB_NAME:entrenaback}}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
 server:
-  port: ${PORT:3001}
+  port: ${SERVER_PORT:8080}
   servlet:
     context-path: /api
 
@@ -14,15 +29,3 @@ gemini:
 cors:
   allowed-origins:
     - ${CORS_FRONTEND_ORIGIN:http://localhost:3000}
-
-spring:
-  datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/entrenaback}
-    username: ${DB_USERNAME:admin}
-    password: ${DB_PASSWORD:123andi123}
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
