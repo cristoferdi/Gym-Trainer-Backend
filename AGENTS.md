@@ -71,13 +71,13 @@ Variables de entorno (ver `src/main/resources/application.yml`):
 
 | Variable | Descripción | Default (solo dev) |
 |----------|-------------|---------------------|
-| `PORT` | Puerto HTTP | `3001` |
+| `PORT` | Puerto HTTP | `8080` |
 | `JWT_SECRET` | Clave HMAC para JWT | *(sin default — requerido)* |
 | `GEMINI_API_KEY` | API key de Gemini | *(requerido para IA)* |
 | `CORS_FRONTEND_ORIGIN` | Origen permitido CORS | `http://localhost:3000` |
 | `DATABASE_URL` | JDBC URL | `jdbc:postgresql://localhost:5433/entrenaback` |
 | `DB_USERNAME` | Usuario DB | `admin` |
-| `DB_PASSWORD` | Password DB | `123andi123` ⚠️ ver nota |
+| `DB_PASSWORD` | Password DB | `tu-password` ⚠️ ver nota |
 | `DOCKER_HOST` | Para Testcontainers | `tcp://127.0.0.1:2375` (perfil `docker-tcp`) |
 
 > ⚠️ **Deuda de seguridad:** `DB_PASSWORD` tiene fallback hardcodeado y `docker-compose.yml` expone `123andi123` en texto plano. `backlog.json` prioriza migrar a `${POSTGRES_PASSWORD}` + `.env` + `.env.example`. **Nunca commitees secretos reales.** Si tocas config, documenta variables en `.env.example`.
@@ -107,7 +107,7 @@ Crea un `.env` (no commiteado) o exporta:
 ```bash
 export JWT_SECRET="cambia-esto-por-un-secreto-largo-de-al-menos-256-bits"
 export GEMINI_API_KEY="tu-key-si-usas-IA"
-export DB_PASSWORD="123andi123"
+export DB_PASSWORD="tu-password"
 export CORS_FRONTEND_ORIGIN="http://localhost:3000"
 ```
 

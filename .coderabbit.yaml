@@ -4,7 +4,7 @@ language: "en-US"
 
 tone_instructions: >
   Professional, direct, and educational. Explain the problem, impact, and
-  relevant Spring/Hibernate concept. Do not automatically provide full code.
+  relevant Spring/Hibernate concept.
   Explain reasoning, trade-offs, and possible approaches for the developer.
   
 early_access: false

@@ -1,9 +1,23 @@
 services:
   postgres:
     image: postgres:15
+
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: 123andi123
-      POSTGRES_DB: entrenaback
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+
     ports:
-    - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
