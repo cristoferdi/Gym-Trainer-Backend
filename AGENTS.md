@@ -17,13 +17,13 @@
 | Lenguaje | Java 21 |
 | Framework | Spring Boot 4.0.6 (parent) |
 | Build | Maven 3.9 (`mvnw`/`mvnw.cmd` incluidos) |
-| DB | PostgreSQL 15 — JPA/Hibernate (`ddl-auto: update`) |
+| DB | PostgreSQL 15 — JPA/Hibernate (`ddl-auto: update` en dev, `validate` en prod) |
 | Auth | Spring Security + JWT (`jjwt 0.12.5/0.12.6`) |
 | Tests | JUnit 5 + Testcontainers (PostgreSQL) + `spring-boot-starter-test` |
 | Infra | Docker multi-stage (`Dockerfile`), `docker-compose.yml` |
 | IA | Google Gemini (`gemini-flash-latest`) vía `RestTemplate` |
 
-Puerto por defecto: `3001` con `server.servlet.context-path=/api` → URLs efectivas como `http://localhost:3001/api/auth/login`.
+Puerto por defecto: `8080` con `server.servlet.context-path=/api` → URLs efectivas como `http://localhost:8080/api/auth/login`.
 
 ## 3. Estructura del proyecto
 
@@ -71,16 +71,16 @@ Variables de entorno (ver `src/main/resources/application.yml`):
 
 | Variable | Descripción | Default (solo dev) |
 |----------|-------------|---------------------|
-| `PORT` | Puerto HTTP | `8080` |
+| `SERVER_PORT` | Puerto HTTP | `8080` |
 | `JWT_SECRET` | Clave HMAC para JWT | *(sin default — requerido)* |
 | `GEMINI_API_KEY` | API key de Gemini | *(requerido para IA)* |
 | `CORS_FRONTEND_ORIGIN` | Origen permitido CORS | `http://localhost:3000` |
 | `DATABASE_URL` | JDBC URL | `jdbc:postgresql://localhost:5433/entrenaback` |
 | `DB_USERNAME` | Usuario DB | `admin` |
-| `DB_PASSWORD` | Password DB | `tu-password` ⚠️ ver nota |
+| `DB_PASSWORD` | Password DB (configurar en `.env`; ver `.env.example`) | *(sin default — requerido)* |
 | `DOCKER_HOST` | Para Testcontainers | `tcp://127.0.0.1:2375` (perfil `docker-tcp`) |
 
-> ⚠️ **Deuda de seguridad:** `DB_PASSWORD` tiene fallback hardcodeado y `docker-compose.yml` expone `123andi123` en texto plano. `backlog.json` prioriza migrar a `${POSTGRES_PASSWORD}` + `.env` + `.env.example`. **Nunca commitees secretos reales.** Si tocas config, documenta variables en `.env.example`.
+> `DB_PASSWORD` es obligatorio tanto para Spring Boot como para Docker Compose y no tiene fallback. Crea `.env` a partir de `.env.example`, configura allí las credenciales locales y **nunca commitees secretos reales**.
 
 `SecurityConfig.java:40-44` — endpoints públicos: `/auth/register`, `/auth/login`, `/auth/refresh`, `/assigned-routines/shared/**`. Todo lo demás requiere JWT. `anonymous.disable()` está activo (bug reportado en backlog).
 
@@ -98,32 +98,31 @@ docker-compose up -d postgres
 docker compose up -d postgres
 ```
 
-DB en `localhost:5433`, `admin / 123andi123 / entrenaback` (credenciales dev).
+DB en `localhost:5433`; el usuario, password y nombre se configuran en `.env` a partir de `.env.example`.
 
 ### Variables de entorno mínimas (dev)
 
-Crea un `.env` (no commiteado) o exporta:
+Crea un `.env` (no commiteado) a partir de la plantilla y ajusta sus valores:
 
 ```bash
-export JWT_SECRET="cambia-esto-por-un-secreto-largo-de-al-menos-256-bits"
-export GEMINI_API_KEY="tu-key-si-usas-IA"
-export DB_PASSWORD="tu-password"
-export CORS_FRONTEND_ORIGIN="http://localhost:3000"
+cp .env.example .env
 ```
+
+`DB_PASSWORD` y `JWT_SECRET` son obligatorios. Configura `GEMINI_API_KEY` si usas IA y `CORS_FRONTEND_ORIGIN` si el frontend no corre en el origen local por defecto.
 
 ### Run en local
 
 ```bash
 ./mvnw spring-boot:run
-# API en http://localhost:3001/api
+# API en http://localhost:8080/api
 ```
 
 ### Docker (build multi-stage)
 
 ```bash
 docker build -t entrenaback .
-docker run -p 3000:3001 --env-file .env entrenaback
-# Nota: Dockerfile expone 3000 pero application.yml usa 3001 (PORT). Ajusta PORT=3000 al correr en contenedor.
+docker run -p 8080:8080 --env-file .env entrenaback
+# Para usar otro puerto dentro del contenedor, ajusta SERVER_PORT y el mapeo de puertos.
 ```
 
 ## 6. Build, tests y calidad
@@ -202,7 +201,7 @@ docker run -p 3000:3001 --env-file .env entrenaback
 
 - **Seguridad (critical):** `UUID.randomUUID` para share tokens, sin rate limit en `/auth/login`, password validation débil (`@Size(min=6)` solo), sin blacklist JWT.
 - **Arquitectura (high):** entidades expuestas en `SyncPullResponse`, `SyncPushRequest` sin validación, `SyncService.push()` sin `@Transactional`, `RoutineService.update()` recrea IDs, `new ObjectMapper()` en `SeedRunner`/`AiService`, cero logging SLF4J, `IllegalArgumentException` genérico, `SeedRunner` debe migrar a Flyway/Liquibase, `RestTemplate` sin timeouts, `JacksonConfig` pisa ObjectMapper auto-configurado.
-- **DB (critical/high):** `ddl-auto: update` en prod, campos CSV en `Exercise`, formatos de lista inconsistentes (JSONB vs pipe vs JSON string), `AssignedBlock.blockData` como JSON blob, sin FKs, sin índices, sin constraints, `LocalDateTime` sin timezone.
+- **DB (critical/high):** falta integrar Flyway/Liquibase para gestionar cambios de esquema en prod, campos CSV en `Exercise`, formatos de lista inconsistentes (JSONB vs pipe vs JSON string), `AssignedBlock.blockData` como JSON blob, sin FKs, sin índices, sin constraints, `LocalDateTime` sin timezone.
 - **API/Calidad:** sin paginación en listados, envelope de respuesta inconsistente, sin límite de batch en sync, etc. Ver `backlog.json` completo para lista exhaustiva.
 
 ## 10. Flujo de trabajo recomendado para un agente

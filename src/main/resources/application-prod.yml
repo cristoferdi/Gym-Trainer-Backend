@@ -1,0 +1,5 @@
+spring:
+  jpa:
+    # Production schema changes must be applied by migrations before startup.
+    hibernate:
+      ddl-auto: validate
